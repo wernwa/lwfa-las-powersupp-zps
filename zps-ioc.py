@@ -17,6 +17,8 @@ import time
 import sys
 from termcolor import colored
 
+alive=True
+
 zps_poling_time = 0.2		# in sesonds
 HOST, PORT = "zps-netzteile", 8003
 
@@ -302,48 +304,54 @@ class myDriver(Driver):
 		return status
 
 	def continues_polling(self):
-		global ps_list, active_ps_list, relee_sign, relee_plus, relee_minus
-		while True:
-			zps_lock.acquire()
-			#while zps_conn == True: time.sleep(0.1)
-			s = SockConn(HOST, PORT)
-			# poll relee
-			volt = s.question('INST:NSEL %d\n:measure:voltage?'%ps_relee.NR)
-			volt_all = '%s '%volt
-			self.setParam('zps:relee:volt', volt)
-			curr = s.question(':measure:current?')
-			curr_all = '%s '%curr
-			self.setParam('zps:relee:curr', curr)
-			if (round(float(volt))==relee_plus): relee_sign=1.0
-			elif (round(float(volt))==relee_minus): relee_sign=-1.0
-			# poll other ps
-			for ps in active_ps_list:
-				volt = s.question('INST:NSEL %d\n:measure:voltage?'%ps.NR)
-				#volt_all += '%s '%volt
-				self.setParam('%s:volt'%ps_to_prefix[ps], volt)
-				self.setParam('%s:volt'%ps_to_magnet[ps], relee_sign*float(volt))
-
+		global alive, ps_list, active_ps_list, relee_sign, relee_plus, relee_minus
+		while alive:
+			try:
+				s = SockConn(HOST, PORT)
+				zps_lock.acquire()
+				#while zps_conn == True: time.sleep(0.1)
+				# poll relee
+				volt = s.question('INST:NSEL %d\n:measure:voltage?'%ps_relee.NR)
+				volt_all = '%s '%volt
+				self.setParam('zps:relee:volt', volt)
 				curr = s.question(':measure:current?')
-				#curr_all += '%s '%curr
-				self.setParam('%s:curr'%ps_to_prefix[ps], curr)
-				self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*float(curr))
+				curr_all = '%s '%curr
+				self.setParam('zps:relee:curr', curr)
+				if (round(float(volt))==relee_plus): relee_sign=1.0
+				elif (round(float(volt))==relee_minus): relee_sign=-1.0
+				# poll other ps
+				for ps in active_ps_list:
+					volt = s.question('INST:NSEL %d\n:measure:voltage?'%ps.NR)
+					#volt_all += '%s '%volt
+					self.setParam('%s:volt'%ps_to_prefix[ps], volt)
+					self.setParam('%s:volt'%ps_to_magnet[ps], relee_sign*float(volt))
+	
+					curr = s.question(':measure:current?')
+					#curr_all += '%s '%curr
+					self.setParam('%s:curr'%ps_to_prefix[ps], curr)
+					self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*float(curr))
+					
+				# refresh ps_all_volt and ps_all_curr
+				for ps in ps_list:
+					if ps == ps_relee: continue
+					if ps in active_ps_list:
+						volt_all += '%s '%self.getParam('%s:volt'%ps_to_prefix[ps])
+						curr_all += '%s '%self.getParam('%s:curr'%ps_to_prefix[ps])
+					else:
+						volt_all += 'None '
+						curr_all += 'None '
+				volt_all += '\n'
+				curr_all += '\n'
+				self.setParam('ps_volt_all',volt_all)
+				self.setParam('ps_curr_all',curr_all)
+	
+				s.__del__()
+				zps_lock.release()
+			except Exception as e:
+				print '%s'%e.message
+				print 'Exiting due to socket error.'
+				alive=False
 				
-			# refresh ps_all_volt and ps_all_curr
-			for ps in ps_list:
-				if ps == ps_relee: continue
-				if ps in active_ps_list:
-					volt_all += '%s '%self.getParam('%s:volt'%ps_to_prefix[ps])
-					curr_all += '%s '%self.getParam('%s:curr'%ps_to_prefix[ps])
-				else:
-					volt_all += 'None '
-					curr_all += 'None '
-			volt_all += '\n'
-			curr_all += '\n'
-			self.setParam('ps_volt_all',volt_all)
-			self.setParam('ps_curr_all',curr_all)
-
-			s.__del__()
-			zps_lock.release()
 			self.updatePVs()
 			time.sleep(zps_poling_time)
 			
@@ -356,7 +364,7 @@ if __name__ == '__main__':
 	driver = myDriver()
 
 	# process CA transactions
-	while True:
+	while alive:
 		try:
 			server.process(0.1)
 		except KeyboardInterrupt:
