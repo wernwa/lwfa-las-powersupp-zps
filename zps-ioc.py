@@ -171,7 +171,91 @@ class myDriver(Driver):
 #    def demag(self):
 #        print 'demag hier'
 
+
     def demag(self):
+        global active_ps_list, relee_sign, relee_plus, relee_minus
+        print 'starting demagnetesization of all active magnets'
+        ps_heightV = []
+        volt_max = 0
+        for ps in active_ps_list:
+            volt = float(self.getParam('%s:volt'%ps_to_prefix[ps]))
+            if volt_max<volt: volt_max=volt
+            ps_heightV.append( volt )
+
+        volt_wave=5     # 5sec /Volt or /Curr
+        duration_sec = volt_max*volt_wave
+        print 'wave time %d'%(duration_sec)
+
+        relee_steps = int(round(0.5/(duration_sec/2)))
+
+        VOLT_str = '24,0,'*relee_steps
+        VOLT_str = VOLT_str[:len(VOLT_str)-1]
+        DWEL_str = '0.5,0.5,'*relee_steps
+        DWEL_str = VOLT_str[:len(DWEL_str)-1]
+
+
+        zps_lock.acquire()
+        s = SockConn(HOST, PORT)
+
+        scpi_ps='''
+INST:NSEL %d
+TRIG:SOUR BUS
+VOLT:MODE LIST
+LIST:VOLT %s
+LIST:DWEL %s
+LIST:COUNT 1
+LIST:STEP AUTO
+INIT:CONT OFF
+INIT
+'''%(ps_relee.NR,VOLT_str,DWEL_str)
+
+
+        print 'VOLTstr',VOLT_str
+        print 'DWELstr',DWEL_str
+        print scpi_ps
+
+        scpi_trigger='''
+INST:NSEL %d
+*TRG
+'''%ps_relee.NR
+
+        for i in range(0,len(active_ps_list)):
+            ps = active_ps_list[i]
+            #print 'psNr',ps.NR
+            scpi_ps+='''
+INST:NSEL %d
+TRIG:SOUR BUS
+VOLT:MODE WAVE
+LIST:VOLT 0
+LIST:DWEL %0.2f
+LIST:COUNT 1
+LIST:STEP AUTO
+INIT:CONT OFF
+INIT
+        '''%(ps.NR,volt_max*volt_wave)
+            scpi_trigger+='''
+INST:NSEL %d
+*TRG
+            '''%ps.NR
+
+        # init all ps
+        s.command(scpi_ps)
+
+        #print scpi_ps
+        #print scpi_trigger
+
+        # give them some time to init
+        time.sleep(0.1)
+
+        # start the demag
+        s.command(scpi_trigger)
+
+        s.__del__()
+        zps_lock.release()
+
+
+    # conventional demag by sending each step value to the powersupply
+    def demag_old(self):
         global active_ps_list, relee_sign, relee_plus, relee_minus
         print 'starting demagnetesization of all active magnets'
         ps_heightV = []

@@ -3,7 +3,7 @@ from PowerSupply import PowerSupply
 zps_poling_time = 0.2        # in sesonds
 HOST, PORT = "zps-netzteile", 8003
 
-ps_relee = PowerSupply(HOST,PORT,32)
+ps_relee = PowerSupply(HOST,PORT,31)
 ps1 = PowerSupply(HOST,PORT,1,magn_sign=-1)
 ps2 = PowerSupply(HOST,PORT,2)
 ps3 = PowerSupply(HOST,PORT,3)
