@@ -89,7 +89,7 @@ pvdb={
 
     'zps:relee:curr': {
         'prec' : 3,'unit' : 'A',
-        'asg'  : 'readonly'
+    #    'asg'  : 'readonly'
     },
     'ps_volt_all' : {
            'type' : 'char',
@@ -138,6 +138,10 @@ class myDriver(Driver):
             print colored('Error: ', 'red'),"main LAN zps powersupply does not respond! %s"%msg
             sys.exit(-1)
 
+        # clear the command structure
+        #for i in [31,1,2,3,4,5,6,7,8,9]:
+        #    s.command('INST:NSEL %d\n*CLS\n'%i)
+        #    time.sleep(0.15)
 
         for ps in ps_to_prefix:
             try:
@@ -145,7 +149,7 @@ class myDriver(Driver):
                 #print idn
                 active_ps_list.append(ps)
                 print '%s powersupplyNR %d [connection '%(ps_to_magnet[ps],ps.NR), colored('OK', 'green'),']'
-                s.command('INST:NSEL %d\nOUTP:STAT ON'%ps.NR)
+                s.command('INST:NSEL %d\n*RST\nOUTP:STAT ON'%ps.NR)
             except socket.timeout:
                 print '%s powersupplyNR %d ['%(ps_to_prefix[ps],ps.NR),colored('disconnect', 'red'),']'
 
@@ -184,14 +188,18 @@ class myDriver(Driver):
 
         volt_wave=5     # 5sec /Volt or /Curr
         duration_sec = volt_max*volt_wave
-        print 'wave time %d'%(duration_sec)
+        print 'duration_sec ',duration_sec
 
-        relee_steps = int(round(0.5/(duration_sec/2)))
+
+        step_size_sec = 1.0
+        relee_steps = duration_sec/step_size_sec
+        relee_steps = int(round(relee_steps/2.0))
+        print 'steps',relee_steps
 
         VOLT_str = '24,0,'*relee_steps
         VOLT_str = VOLT_str[:len(VOLT_str)-1]
-        DWEL_str = '0.5,0.5,'*relee_steps
-        DWEL_str = VOLT_str[:len(DWEL_str)-1]
+        DWEL_str = '%0.2f,%0.2f,'%(step_size_sec,step_size_sec)*relee_steps
+        DWEL_str = DWEL_str[:len(DWEL_str)-1]
 
 
         zps_lock.acquire()
@@ -210,9 +218,7 @@ INIT
 '''%(ps_relee.NR,VOLT_str,DWEL_str)
 
 
-        print 'VOLTstr',VOLT_str
-        print 'DWELstr',DWEL_str
-        print scpi_ps
+        #print scpi_ps
 
         scpi_trigger='''
 INST:NSEL %d
@@ -232,7 +238,7 @@ LIST:COUNT 1
 LIST:STEP AUTO
 INIT:CONT OFF
 INIT
-        '''%(ps.NR,volt_max*volt_wave)
+        '''%(ps.NR,ps_heightV[i]*volt_wave)
             scpi_trigger+='''
 INST:NSEL %d
 *TRG
@@ -245,7 +251,7 @@ INST:NSEL %d
         #print scpi_trigger
 
         # give them some time to init
-        time.sleep(0.1)
+        time.sleep(0.25)
 
         # start the demag
         s.command(scpi_trigger)
@@ -338,6 +344,14 @@ INST:NSEL %d
         status = True
         ps = None
 
+        # TODO rm: test with relee current
+        if reason== 'zps:relee:curr':
+            print 'setting the relee current'
+            zps_lock.acquire()
+            ps_relee.setWaveCurr(value)
+            zps_lock.release()
+            return True
+
         if reason=='demag':
             self.thred_demag_id = thread.start_new_thread(self.demag,())
             return True
@@ -346,8 +360,8 @@ INST:NSEL %d
         elif reason in record_to_ps: ps = record_to_ps[reason]
         if ps==None: return False
 
-        zps_lock.acquire()
         if ps == ps_relee and reason == 'zps:relee:volt':
+            zps_lock.acquire()
             if float(value) == relee_plus:
                 self.setParam('zps:relee:sign', 1)    # plus
                 ps.setVolt(relee_plus)
@@ -371,9 +385,14 @@ INST:NSEL %d
             zps_lock.release()
             return status
         else:
-            if 'volt' in reason: ps.setVolt(value)
-            elif 'curr' in reason: ps.setCurr(value)
-            zps_lock.release()
+            #zps_lock.acquire()
+            if 'volt' in reason:
+                ps.setVolt(value)
+                #self.setLockedVolt(ps,value)
+            elif 'curr' in reason:
+                ps.setCurr(value)
+                #self.setLockedCurr(ps,value)
+            #zps_lock.release()
 
         if status:
             self.setParam(reason, value)
@@ -383,6 +402,14 @@ INST:NSEL %d
             if 'volt' in reason: self.setParam('%s:volt'%ps_to_magnet[ps], ps.magn_sign*relee_sign*value)
             elif 'curr' in reason: self.setParam('%s:curr'%ps_to_magnet[ps], ps.magn_sign*relee_sign*value)
         return status
+
+    def setLockedVolt(self, ps, value):
+        def f(value):
+            zps_lock.acquire()
+            ps.setWaveVolt(value)
+            zps_lock.release()
+
+        thread.start_new_thread(f,(value,))
 
     def continues_polling(self):
         global alive, ps_list, active_ps_list, relee_sign, relee_plus, relee_minus
