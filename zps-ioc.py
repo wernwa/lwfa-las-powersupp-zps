@@ -402,8 +402,11 @@ INST:NSEL %d
             if 'volt' in reason:
                 #ps.setVolt(value)
                 # TODO rm: temporare wave for Volt
-                self.setLockedVoltThread(ps,value,reason)
-                status=False
+                if self.getParam(reason+':status')==0:
+                    self.setLockedVoltThread(ps,value,reason)
+                else:
+                    status=False
+                    print '%s BUSY!!!'%reason
                 return status
             elif 'curr' in reason:
                 self.setLockedCurrThread(ps,value,reason)
