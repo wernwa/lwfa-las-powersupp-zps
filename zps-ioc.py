@@ -420,7 +420,7 @@ INST:NSEL %d
             elif 'curr' in reason: self.setParam('%s:curr'%ps_to_magnet[ps], ps.magn_sign*relee_sign*value)
         return status
 
-    def setLockedCurrThread(self, ps, value):
+    def setLockedCurrThread(self, ps, value,reason):
         def f(value):
             zps_lock.acquire()
             ps.setWaveCurr(value)

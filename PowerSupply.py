@@ -83,7 +83,7 @@ INIT
     def setWaveCurr(self,curr):
         s = SockConn(self.HOST, self.PORT)
         s.command("INST:NSEL %d\n"%self.NR)
-        self.wait_for_op_complete(s)
+        #self.wait_for_op_complete(s)
         curr_now = s.question("measure:current?\n")
         print 'curr_now: ',curr_now
         diff = float(curr_now)-curr
