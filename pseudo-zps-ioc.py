@@ -157,7 +157,7 @@ class myDriver(Driver):
             #curr_all += '%s '%curr
             self.setParam('%s:curr'%ps_to_prefix[ps], curr)
             self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*float(curr))
-
+        self.demag_active=False
         #start polling
         self.tid = thread.start_new_thread(self.continues_polling,())
         print '----------------------------------------------------------'
@@ -168,8 +168,11 @@ class myDriver(Driver):
     def read(self, reason):
         return self.getParam(reason)
 
-#   def demag(self):
-#       print 'demag hier'
+    def demag(self):
+        print 'starting pseudo demag'
+        time.sleep(2)
+        print 'ending of pseudo demag'
+        self.demag_active=False
 
 
     def write(self, reason, value):
@@ -182,9 +185,9 @@ class myDriver(Driver):
         status = True
         ps = None
 
-        if reason=='demag':
-            self.thred_demag_id = thread.start_new_thread(self.demag,())
-            return True
+        if reason=='demag' and self.demag_active==False:
+                self.demag_active=True
+                self.thred_demag_id = thread.start_new_thread(self.demag,())
 
 
         if status:

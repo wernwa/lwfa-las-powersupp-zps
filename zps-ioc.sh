@@ -5,7 +5,7 @@ export EPICS_CA_REPEATER_PORT=20001
 
 if [ "$1" == "start" ]
 then
-    ./zps-ioc.py &
+    ./zps-ioc.py
 elif [ "$1" == "stop" ]
 then
     

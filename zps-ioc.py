@@ -174,6 +174,7 @@ class myDriver(Driver):
         s.__del__()
 
 
+        self.demag_active=False
 
         #start polling
         self.tid = thread.start_new_thread(self.continues_polling,())
@@ -348,6 +349,7 @@ INIT
         zps_lock.release()
         self.setParam('demag',0)
         self.updatePVs()
+        self.demag_active=False
 
 
     def write(self, reason, value):
@@ -365,7 +367,8 @@ INIT
         #    #zps_lock.release()
         #    return True
 
-        if reason=='demag':
+        if reason=='demag' and self.demag_active==False:
+            self.demag_active=True
             self.thred_demag_id = thread.start_new_thread(self.demag,())
             return True
 
