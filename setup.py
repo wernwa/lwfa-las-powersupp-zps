@@ -1,5 +1,7 @@
 from PowerSupply import PowerSupply
+from PowerSupply import step_velocity
 
+step_velocity=0.25
 
 
 zps_poling_time = 0.2        # in sesonds
