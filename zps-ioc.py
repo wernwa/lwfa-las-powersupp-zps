@@ -201,14 +201,14 @@ class myDriver(Driver):
 
         duration_sec = curr_max/step_velocity
         if duration_sec==0:
-            print 'duration_sec ',duration_sec
+            #print 'duration_sec ',duration_sec
             return
 
 
         step_size_sec = 1.0
         relee_steps = duration_sec/step_size_sec
         relee_steps = int(round(relee_steps/2.0))
-        print 'steps',relee_steps
+        #print 'steps',relee_steps
 
         VOLT_str = '24,0,'
         VOLT_str = VOLT_str[:len(VOLT_str)-1]
@@ -239,7 +239,7 @@ INIT
 
         for i in range(0,len(active_ps_list)):
             ps = active_ps_list[i]
-            print ps.NR,ps_heightCurr[i]
+            #print ps.NR,ps_heightCurr[i]
             #print 'psNr',ps.NR
             scpi_ps+='''
 INST:NSEL %d
@@ -430,9 +430,9 @@ INIT
             zps_lock.release()
             curr_now = self.getParam(reason)
             sleep_s = (abs(value-float(curr_now)))/step_velocity
-            print sleep_s
+            #print sleep_s
             time.sleep(sleep_s)
-            print 'pv %s done'%reason
+            #print 'pv %s done'%reason
             self.setParam(reason+':status',0)
 
         thread.start_new_thread(f,(self,value,reason,))

@@ -85,7 +85,7 @@ INIT
         s.command("INST:NSEL %d\n"%self.NR)
         #self.wait_for_op_complete(s)
         curr_now = s.question("measure:current?\n")
-        print 'curr_now: ',curr_now
+        #print 'curr_now: ',curr_now
         diff = float(curr_now)-curr
         if diff==0: return
         DWEL=abs(diff)/step_velocity
@@ -101,7 +101,7 @@ INIT
 
 *TRG
       '''%(curr,DWEL)
-        print scpi_ps
+        #print scpi_ps
         s.command(scpi_ps)
         s.__del__()
 
