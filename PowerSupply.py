@@ -36,8 +36,8 @@ class PowerSupply:
 
     def setVolt(self,volt):
         s = SockConn(self.HOST, self.PORT)
-        #s.command("INST:NSEL %d\n"%self.NR)
-        self.wait_for_op_complete(s)
+        s.command("INST:NSEL %d\n"%self.NR)
+        #self.wait_for_op_complete(s)
         s.command(":VOLT %.3f\n"%volt)
         s.__del__()
 

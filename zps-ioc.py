@@ -144,7 +144,7 @@ class myDriver(Driver):
         try:
             s = SockConn(HOST, PORT)
             #active_ps_list.append(ps_relee)
-            s.command('INST:NSEL %d\nOUTP:STAT ON'%ps_relee.NR)
+            s.command('INST:NSEL %d\nABORT\nOUTP:STAT ON\n'%ps_relee.NR)
             print '%s powersupplyNR %d [connection '%('zps:relee',ps_relee.NR), colored('OK', 'green'),']'
         except socket.error, msg:
             print colored('Error: ', 'red'),"main LAN zps powersupply does not respond! %s"%msg
@@ -161,7 +161,9 @@ class myDriver(Driver):
                 #print idn
                 active_ps_list.append(ps)
                 print '%s powersupplyNR %d [connection '%(ps_to_magnet[ps],ps.NR), colored('OK', 'green'),']'
+                #s.command('INST:NSEL %d\nSYST:REMOTE RMT\nOUTP:STAT ON\n'%ps.NR)
                 s.command('INST:NSEL %d\nABORT\nOUTP:STAT ON\n'%ps.NR)
+                #s.command('INST:NSEL %d\nOUTP:STAT ON\n'%ps.NR)
             except socket.timeout:
                 print '%s powersupplyNR %d ['%(ps_to_prefix[ps],ps.NR),colored('disconnect', 'red'),']'
 
@@ -185,23 +187,22 @@ class myDriver(Driver):
 
         return self.getParam(reason)
 
-#    def demag(self):
-#        print 'demag hier'
 
 
     def demag(self):
         global active_ps_list, relee_sign, relee_plus, relee_minus
         print 'starting demagnetesization of all active magnets'
-        ps_heightV = []
-        volt_max = 0
+        ps_heightCurr = []
+        curr_max = 0
         for ps in active_ps_list:
-            volt = float(self.getParam('%s:volt'%ps_to_prefix[ps]))
-            if volt_max<volt: volt_max=volt
-            ps_heightV.append( volt )
+            curr = float(self.getParam('%s:curr'%ps_to_prefix[ps]))
+            if curr_max<curr: curr_max=curr
+            ps_heightCurr.append( curr )
 
-        volt_wave=5     # 5sec /Volt or /Curr
-        duration_sec = volt_max*volt_wave
-        print 'duration_sec ',duration_sec
+        duration_sec = curr_max/step_velocity
+        if duration_sec==0:
+            print 'duration_sec ',duration_sec
+            return
 
 
         step_size_sec = 1.0
@@ -209,9 +210,9 @@ class myDriver(Driver):
         relee_steps = int(round(relee_steps/2.0))
         print 'steps',relee_steps
 
-        VOLT_str = '24,0,'*relee_steps
+        VOLT_str = '24,0,'
         VOLT_str = VOLT_str[:len(VOLT_str)-1]
-        DWEL_str = '%0.2f,%0.2f,'%(step_size_sec,step_size_sec)*relee_steps
+        DWEL_str = '%0.2f,%0.2f,'%(step_size_sec,step_size_sec)
         DWEL_str = DWEL_str[:len(DWEL_str)-1]
 
 
@@ -224,53 +225,51 @@ TRIG:SOUR BUS
 VOLT:MODE LIST
 LIST:VOLT %s
 LIST:DWEL %s
-LIST:COUNT 1
+LIST:COUNT %d
 LIST:STEP AUTO
 INIT:CONT OFF
 INIT
-'''%(ps_relee.NR,VOLT_str,DWEL_str)
+
+*TRG
+'''%(ps_relee.NR,VOLT_str,DWEL_str,relee_steps)
 
 
         #print scpi_ps
 
-        scpi_trigger='''
-INST:NSEL %d
-*TRG
-'''%ps_relee.NR
 
         for i in range(0,len(active_ps_list)):
             ps = active_ps_list[i]
+            print ps.NR,ps_heightCurr[i]
             #print 'psNr',ps.NR
             scpi_ps+='''
 INST:NSEL %d
 TRIG:SOUR BUS
-VOLT:MODE WAVE
-LIST:VOLT 0
+CURR:MODE WAVE
+LIST:CURR 0
 LIST:DWEL %0.2f
 LIST:COUNT 1
 LIST:STEP AUTO
 INIT:CONT OFF
 INIT
-        '''%(ps.NR,ps_heightV[i]*volt_wave)
-            scpi_trigger+='''
-INST:NSEL %d
-*TRG
-            '''%ps.NR
 
+*TRG
+        '''%(ps.NR,ps_heightCurr[i]/step_velocity)
         # init all ps
         s.command(scpi_ps)
 
         #print scpi_ps
-        #print scpi_trigger
-
-        # give them some time to init
-        time.sleep(0.25)
-
-        # start the demag
-        s.command(scpi_trigger)
 
         s.__del__()
         zps_lock.release()
+
+        # demag duration set status
+        for i in range(1,10):
+            self.setParam('zps:%d:curr:status'%i,1)
+        time.sleep(duration_sec)
+        for i in range(1,10):
+            self.setParam('zps:%d:curr:status'%i,0)
+        print 'Demag DONE'
+
 
 
     # conventional demag by sending each step value to the powersupply
@@ -400,16 +399,19 @@ INST:NSEL %d
             return status
         else:
             if 'volt' in reason:
-                #ps.setVolt(value)
-                # TODO rm: temporare wave for Volt
+                self.setParam(reason+':status',1)
+                zps_lock.acquire()
+                ps.setVolt(value)
+                zps_lock.release()
+                self.setParam(reason+':status',0)
+
+            elif 'curr' in reason:
                 if self.getParam(reason+':status')==0:
-                    self.setLockedVoltThread(ps,value,reason)
+                    self.setLockedCurrThread(ps,value,reason)
                 else:
                     status=False
                     print '%s BUSY!!!'%reason
                 return status
-            elif 'curr' in reason:
-                self.setLockedCurrThread(ps,value,reason)
 
         if status:
             self.setParam(reason, value)
@@ -421,31 +423,38 @@ INST:NSEL %d
         return status
 
     def setLockedCurrThread(self, ps, value,reason):
-        def f(value):
-            zps_lock.acquire()
-            ps.setWaveCurr(value)
-            zps_lock.release()
-
-        thread.start_new_thread(f,(value,))
-
-    def setLockedVoltThread(self, ps, value, reason):
-        print '*** temporare setLockedVoltThread ***'
         def f(self,value,reason):
             self.setParam(reason+':status',1)
             zps_lock.acquire()
-            ps.setWaveVolt(value)
+            ps.setWaveCurr(value)
             zps_lock.release()
-            volt_now = self.getParam(reason)
-            sleep_s = (abs(value-float(volt_now)))/step_velocity
+            curr_now = self.getParam(reason)
+            sleep_s = (abs(value-float(curr_now)))/step_velocity
             print sleep_s
             time.sleep(sleep_s)
             print 'pv %s done'%reason
             self.setParam(reason+':status',0)
-            #self.setParam(reason,value)
-            #self.callbackPV(reason)
-
 
         thread.start_new_thread(f,(self,value,reason,))
+
+#    def setLockedVoltThread(self, ps, value, reason):
+#        print '*** temporare setLockedVoltThread ***'
+#        def f(self,value,reason):
+#            self.setParam(reason+':status',1)
+#            zps_lock.acquire()
+#            ps.setWaveVolt(value)
+#            zps_lock.release()
+#            volt_now = self.getParam(reason)
+#            sleep_s = (abs(value-float(volt_now)))/step_velocity
+#            print sleep_s
+#            time.sleep(sleep_s)
+#            print 'pv %s done'%reason
+#            self.setParam(reason+':status',0)
+#            #self.setParam(reason,value)
+#            #self.callbackPV(reason)
+#
+#
+#        thread.start_new_thread(f,(self,value,reason,))
 
     def continues_polling(self):
         global alive, ps_list, active_ps_list, relee_sign, relee_plus, relee_minus
