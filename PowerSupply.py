@@ -4,6 +4,9 @@ import time
 from SockConn import SockConn
 
 
+step_velocity=0.25 # A/sec
+step_velocity=2 # A/sec relee friendly speed
+
 class PowerSupply:
     NR=None
     connection=None
@@ -18,53 +21,65 @@ class PowerSupply:
         #self.connection.command("INST:NSEL {}".format(self.NR))
         self.magn_sign=magn_sign
 
+    def wait_for_op_complete(self, sock):
+        opc = 0
+        while opc!='1':
+            opc=sock.question('*OPC?\n')
 
     def getVolt(self):
         s = SockConn(self.HOST, self.PORT)
-        # SCPI: MEASure:Voltage? (MV?)
-        answer = s.question("INST:NSEL {}\n:measure:voltage?".format(self.NR))
+        s.command("INST:NSEL %d\n"%self.NR)
+        self.wait_for_op_complete(s)
+        answer = s.question(":measure:voltage?")
         s.__del__()
         return answer
 
     def setVolt(self,volt):
         s = SockConn(self.HOST, self.PORT)
-        s.command("INST:NSEL {}\n:VOLT {}".format(self.NR, volt))
-        #s.__del__()
+        s.command("INST:NSEL %d\n"%self.NR)
+        self.wait_for_op_complete(s)
+        s.command(":VOLT %.3f"%volt)
+        s.__del__()
 
     def getCurr(self):
         s = SockConn(self.HOST, self.PORT)
-        # SCPI: MEASure:CURRent? (MC?)
-        answer = s.question("INST:NSEL {}\nmeasure:current?".format(self.NR))
+        s.command("INST:NSEL %d\n"%self.NR)
+        self.wait_for_op_complete(s)
+        answer = s.question("measure:current?")
         s.__del__()
         return answer
 
     def setCurr(self,curr):
         s = SockConn(self.HOST, self.PORT)
-        s.command("INST:NSEL {}\n:CURR {}".format(self.NR, curr))
+        s.command("INST:NSEL %d\n"%self.NR)
+        self.wait_for_op_complete(s)
+        s.command(":CURR %.3f"%curr)
         s.__del__()
+
 
     def setWaveCurr(self,curr):
         s = SockConn(self.HOST, self.PORT)
-        curr_now = s.question("INST:NSEL %d\nmeasure:current?"%self.NR)
-        curr_wave=1
+        s.command("INST:NSEL %d\n"%self.NR)
+        self.wait_for_op_complete(s)
+        curr_now = s.question("measure:current?")
+        print 'curr_now: ',curr_now
+        diff = float(curr_now)-curr
+        if diff==0: return
+        DWEL=abs(diff)/step_velocity
         scpi_ps='''
-INST:NSEL %d
 TRIG:SOUR BUS
-VOLT:MODE WAVE
-LIST:VOLT %0.3f
-LIST:DWEL %0.3f
+CURR:MODE WAVE
+LIST:CURR %0.3f
+LIST:DWEL %0.2f
 LIST:COUNT 1
 LIST:STEP AUTO
 INIT:CONT OFF
 INIT
-      '''%(self.NR,curr,abs(float(curr_now)-curr)*curr_wave)
+
+*TRG
+      '''%(curr,DWEL)
         print scpi_ps
         s.command(scpi_ps)
-        s.__del__()
-
-        s = SockConn(self.HOST, self.PORT)
-        time.sleep(0.1)
-        s.command('*TRIG\n')
         s.__del__()
 
 

@@ -160,6 +160,7 @@ class myDriver(Driver):
         s.__del__()
 
 
+
         #start polling
         self.tid = thread.start_new_thread(self.continues_polling,())
         print '----------------------------------------------------------'
@@ -349,6 +350,7 @@ INST:NSEL %d
             print 'setting the relee current'
             zps_lock.acquire()
             ps_relee.setWaveCurr(value)
+            #ps_relee.setCurr(value)
             zps_lock.release()
             return True
 
