@@ -18,9 +18,10 @@ class SockConn:
     self.sock.connect((self.HOST, self.PORT))
 
   
-  def readline(self,asock, recv_buffer=4096, delim='\r\n'):
+  def readline(self,asock, recv_buffer=4096, delim='\r\n', timeout=0.5):
 	buffer = ''
 	data = True
+	self.sock.settimeout(timeout)
 	while data:
 		data = self.sock.recv(recv_buffer)
 		buffer += data
@@ -35,12 +36,12 @@ class SockConn:
     #print "SCPI "+data+"\n"
     
     
-  def question(self,data):
+  def question(self,data,timeout=0.2):
     #try:
       start_millis=current_millis()
       
       self.command(data)
-      received = self.readline(self.sock)
+      received = self.readline(self.sock,timeout=timeout)
 
       msecs=current_millis()-start_millis
       

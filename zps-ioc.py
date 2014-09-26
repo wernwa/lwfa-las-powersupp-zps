@@ -11,31 +11,29 @@ import thread
 import serial
 from SockConn import SockConn
 from PowerSupply import PowerSupply
+import time
+import sys
 
-ps = range(11)
+zps_poling_time = 0.2		# in sesonds
 HOST, PORT = "zps-netzteile", 8003
 
 prefix = 'shicane:'
 pvdb = {
     'relee:volt' : {
         'prec' : 3,
-#        'scan' : 0.5,
 		'unit' : 'V',
     },
     'relee:curr' : {
         'prec' : 3,
-#        'scan' : 0.5,
 		'unit' : 'A',
     },
 
     'q1:volt' : {
         'prec' : 3,
-        'scan' : 0.5,
 		'unit' : 'V',
     },
     'q1:curr' : {
         'prec' : 3,
- #       'scan' : 0.5,
 		'unit' : 'A',
     },
 }
@@ -44,8 +42,8 @@ tempcnt = 7
 class myDriver(Driver):
     def  __init__(self):
         super(myDriver, self).__init__()
-        #self.ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1)
-        #self.tid = thread.start_new_thread(self.read_tty,())
+        self.tid = thread.start_new_thread(self.continues_polling,())
+		
 
 	global ps_relee, ps2, ps3, ps4, ps5, ps6, ps7, ps8, ps9, ps10
 	global q1, q2, q3, q4, q5, q6, q7, d1, d2
@@ -53,27 +51,43 @@ class myDriver(Driver):
 	ps_relee = PowerSupply(HOST,PORT,1)
 	q1 = ps8 = PowerSupply(HOST,PORT,8)
 
-	global record_to_ps 
-	record_to_ps = {
-		'relee:volt':ps_relee,
-		'relee:curr':ps_relee,
-		'q1:volt':ps8,
-		'q1:curr':ps8,
-
+	global prefix_to_ps, ps_to_prefix, record_to_ps
+	prefix_to_ps = {
+		'relee' : ps_relee,
+		'q1'	: ps8,
 	}
 
+	ps_to_prefix = {}
+	for key in prefix_to_ps: ps_to_prefix[prefix_to_ps[key]]=key
+
+	record_to_ps = {}
+	for key in prefix_to_ps:
+		record_to_ps['%s:volt'%key] = prefix_to_ps[key]
+		record_to_ps['%s:curr'%key] = prefix_to_ps[key]
+	global zps_lock, zps_conn
+	zps_lock = thread.allocate_lock()
+	zps_conn = False
+
     def read(self, reason):
-		ps = record_to_ps[reason]
-		if 'volt' in reason: return ps.getVolt()
-		elif 'curr' in reason: return ps.getCurr()
+		#ps = record_to_ps[reason]
+		#zps_lock.acquire()
+		#zps_conn = True
+		##if 'volt' in reason: return ps.getVolt()
+		##elif 'curr' in reason: return ps.getCurr()
+		#zps_conn = False
+		#zps_lock.release()
 
 		return self.getParam(reason)
 		
     def write(self, reason, value):
 		status = True
 		ps = record_to_ps[reason]
+		zps_lock.acquire()
+		#zps_conn = True
 		if 'volt' in reason: ps.setVolt(value)
 		elif 'curr' in reason: ps.setCurr(value)
+		#zps_conn = False
+		zps_lock.release()
 
 		#if status:
 		#	self.setParam(reason, value)
@@ -81,23 +95,24 @@ class myDriver(Driver):
 		return status
 
 
-    def read_tty(self):
-        global tempcnt
+    def continues_polling(self):
+        active_ps_list = [ps_relee,ps8]
         while True:
-            line = self.ser.readline()
-	    #print line
-            t_arr = line.split(' ')
-            if (len(t_arr)!=tempcnt+1):
-                continue
-            #print t_arr
-            self.setParam('q1:temp', t_arr[0])
-            self.setParam('q2:temp', t_arr[1])
-            self.setParam('q3:temp', t_arr[2])
-            self.setParam('q4:temp', t_arr[3])
-            self.setParam('q5:temp', t_arr[4])
-            self.setParam('q6:temp', t_arr[5])
-            self.setParam('q7:temp', t_arr[6])
-            self.updatePVs()
+			zps_lock.acquire()
+			#while zps_conn == True: time.sleep(0.1)
+			s = SockConn(HOST, PORT)
+			for ps in active_ps_list:
+				volt = s.question('INST:NSEL %d\n:measure:voltage?'%ps.NR)
+				self.setParam('%s:volt'%ps_to_prefix[ps], volt)
+				curr = s.question(':measure:current?')
+				self.setParam('%s:curr'%ps_to_prefix[ps], curr)
+				print volt,curr
+
+			s.__del__()
+			zps_lock.release()
+			self.updatePVs()
+			time.sleep(zps_poling_time)
+			
 
 if __name__ == '__main__':
 
@@ -108,5 +123,9 @@ if __name__ == '__main__':
 
     # process CA transactions
     while True:
-        server.process(0.1)
+		try:
+			server.process(0.1)
+		except KeyboardInterrupt:
+			print "Bye"
+			sys.exit()
 
