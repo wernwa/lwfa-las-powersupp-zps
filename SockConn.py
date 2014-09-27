@@ -18,7 +18,7 @@ class SockConn:
     self.sock.connect((self.HOST, self.PORT))
 
   
-  def readline(self,asock, recv_buffer=4096, delim='\r\n', timeout=0.5):
+  def readline(self,asock, recv_buffer=4096, delim='\r\n', timeout=1):
 	buffer = ''
 	data = True
 	self.sock.settimeout(timeout)

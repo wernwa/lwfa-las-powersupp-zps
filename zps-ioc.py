@@ -14,113 +14,10 @@ import socket
 from PowerSupply import PowerSupply
 import time
 import sys
+from termcolor import colored
 
 zps_poling_time = 0.2		# in sesonds
 HOST, PORT = "zps-netzteile", 8003
-
-prefix = 'shicane:'
-pvdb = {
-    'relee:volt' : {
-        'prec' : 3,
-		'unit' : 'V',
-    },
-    'relee:curr' : {
-        'prec' : 3,
-		'unit' : 'A',
-    },
-
-    'q1:volt' : {
-        'prec' : 3,
-		'unit' : 'V',
-    },
-    'q1:curr' : {
-        'prec' : 3,
-		'unit' : 'A',
-    },
-
-    'q2:volt' : {
-        'prec' : 3,
-		'unit' : 'V',
-    },
-    'q2:curr' : {
-        'prec' : 3,
-		'unit' : 'A',
-    },
-
-    'q3:volt' : {
-        'prec' : 3,
-		'unit' : 'V',
-    },
-    'q3:curr' : {
-        'prec' : 3,
-		'unit' : 'A',
-    },
-
-    'q4:volt' : {
-        'prec' : 3,
-		'unit' : 'V',
-    },
-    'q4:curr' : {
-        'prec' : 3,
-		'unit' : 'A',
-    },
-
-    'q5:volt' : {
-        'prec' : 3,
-		'unit' : 'V',
-    },
-    'q5:curr' : {
-        'prec' : 3,
-		'unit' : 'A',
-    },
-
-    'q6:volt' : {
-        'prec' : 3,
-		'unit' : 'V',
-    },
-    'q6:curr' : {
-        'prec' : 3,
-		'unit' : 'A',
-    },
-
-    'q7:volt' : {
-        'prec' : 3,
-		'unit' : 'V',
-    },
-    'q7:curr' : {
-        'prec' : 3,
-		'unit' : 'A',
-    },
-
-    'q8:volt' : {
-        'prec' : 3,
-		'unit' : 'V',
-    },
-    'q8:curr' : {
-        'prec' : 3,
-		'unit' : 'A',
-    },
-
-    'q9:volt' : {
-        'prec' : 3,
-		'unit' : 'V',
-    },
-    'q9:curr' : {
-        'prec' : 3,
-		'unit' : 'A',
-    },
-
-    'q10:volt' : {
-        'prec' : 3,
-		'unit' : 'V',
-    },
-    'q10:curr' : {
-        'prec' : 3,
-		'unit' : 'A',
-    },
-}
-
-		
 
 global ps_relee, ps2, ps3, ps4, ps5, ps6, ps7, ps8, ps9, ps10
 #global q1, q2, q3, q4, q5, q6, q7, d1, d2
@@ -136,7 +33,7 @@ ps8 = PowerSupply(HOST,PORT,8)
 ps9 = PowerSupply(HOST,PORT,9)
 ps10 = PowerSupply(HOST,PORT,10)
 
-global prefix_to_ps, ps_to_prefix, record_to_ps
+#global prefix_to_ps, ps_to_prefix, record_to_ps
 prefix_to_ps = {
 	'relee' : ps_relee,
 	'q1'	: ps2,
@@ -158,11 +55,19 @@ for key in prefix_to_ps:
 	record_to_ps['%s:volt'%key] = prefix_to_ps[key]
 	record_to_ps['%s:curr'%key] = prefix_to_ps[key]
 
-global zps_lock, zps_conn
+#global zps_lock, zps_conn
 zps_lock = thread.allocate_lock()
 zps_conn = False
 
 active_ps_list = []
+
+prefix = 'shicane:'
+pvdb={}
+for name in prefix_to_ps:
+	pvdb['%s:volt'%name] = {'prec' : 3,'unit' : 'V'}
+	pvdb['%s:curr'%name] = {'prec' : 3,'unit' : 'A'}
+
+
 
 class myDriver(Driver):
     def  __init__(self):
@@ -173,33 +78,32 @@ class myDriver(Driver):
 		try:
 			s = SockConn(HOST, PORT)
 		except socket.error, msg:
-			print "err: main LAN zps powersupply does not respond! %s"%msg
+			print colored('Error: ', 'red'),"main LAN zps powersupply does not respond! %s"%msg
 			sys.exit(-1)
 
 
 		for ps in ps_to_prefix:
 			try:
 				idn = s.question('INST:NSEL %d\n*IDN?\n'%ps.NR,timeout=0.3)
-				print idn
+				#print idn
 				active_ps_list.append(ps)
-				print '%s powersupplyNR %d [connection OK]'%(ps_to_prefix[ps],ps.NR)
+				print '%s powersupplyNR %d [connection '%(ps_to_prefix[ps],ps.NR), colored('OK', 'green'),']'
+				s.command('INST:NSEL %d\nOUTP:STAT ON'%ps.NR)
 			except socket.timeout:
-				print '%s powersupplyNR %d [disconnect]'%(ps_to_prefix[ps],ps.NR)
+				print '%s powersupplyNR %d ['%(ps_to_prefix[ps],ps.NR),colored('disconnect', 'red'),']'
 
 		if len(active_ps_list)==0:
-			print 'err: no powersupplies discovered!'
+			print colored('Error: ', 'red'),'no powersupplies discovered!'
 			sys.exit(-1)
 		
 		s.__del__()
 	
-		#tmp
-		#sys.exit()
 
 		#start polling	
 		self.tid = thread.start_new_thread(self.continues_polling,())
-		print '-------------------------------------------'
-		print '%d ps up. Start polling with %0.3f seconds.'%(len(active_ps_list),zps_poling_time)
-		print '-------------------------------------------'
+		print '----------------------------------------------------------'
+		print '%d ps up. Start polling with %0.3f seconds (CTRL+C -> end).'%(len(active_ps_list),zps_poling_time)
+		print '----------------------------------------------------------'
 
     def read(self, reason):
 		#ps = record_to_ps[reason]
@@ -213,6 +117,7 @@ class myDriver(Driver):
 		return self.getParam(reason)
 		
     def write(self, reason, value):
+		#TODO read status
 		status = True
 		ps = record_to_ps[reason]
 		zps_lock.acquire()
@@ -222,8 +127,8 @@ class myDriver(Driver):
 		#zps_conn = False
 		zps_lock.release()
 
-		#if status:
-		#	self.setParam(reason, value)
+		if status:
+			self.setParam(reason, value)
 
 		return status
 
@@ -239,7 +144,7 @@ class myDriver(Driver):
 				self.setParam('%s:volt'%ps_to_prefix[ps], volt)
 				curr = s.question(':measure:current?')
 				self.setParam('%s:curr'%ps_to_prefix[ps], curr)
-				#print volt,curr
+				#print ps.NR,volt,curr,ps_to_prefix[ps]
 
 			s.__del__()
 			zps_lock.release()
