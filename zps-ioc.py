@@ -33,7 +33,6 @@ ps8 = PowerSupply(HOST,PORT,8)
 ps9 = PowerSupply(HOST,PORT,9)
 ps10 = PowerSupply(HOST,PORT,10)
 
-#global prefix_to_ps, ps_to_prefix, record_to_ps
 prefix_to_ps = {
 	'relee' : ps_relee,
 	'q1'	: ps2,
@@ -61,8 +60,24 @@ zps_conn = False
 
 active_ps_list = []
 
+relee_plus = 0	# V
+relee_minus = 20	#V
+
 prefix = 'shicane:'
-pvdb={}
+pvdb={
+	'relee:sign': {
+        'type' : 'enum',
+        'enums': ['-', '+']
+	},
+	
+#	'relee:volt': {
+#		'prec' : 3,'unit' : 'V'
+#	},
+#
+#	'relee:curr': {
+#		'prec' : 3,'unit' : 'A'
+#	},
+}
 for name in prefix_to_ps:
 	pvdb['%s:volt'%name] = {'prec' : 3,'unit' : 'V'}
 	pvdb['%s:curr'%name] = {'prec' : 3,'unit' : 'A'}
@@ -73,7 +88,7 @@ class myDriver(Driver):
     def  __init__(self):
 		super(myDriver, self).__init__()
 		
-		# aprove connection to the power supplies
+		# check connection to the power supplies
 		global active_ps_list
 		try:
 			s = SockConn(HOST, PORT)
@@ -117,14 +132,28 @@ class myDriver(Driver):
 		return self.getParam(reason)
 		
     def write(self, reason, value):
+		global relee_plus, relee_minus
 		#TODO read status
 		status = True
 		ps = record_to_ps[reason]
+
 		zps_lock.acquire()
-		#zps_conn = True
+		if ps == ps_relee:
+			if reason == 'relee:volt': 
+				if value == relee_plus:
+					self.setParam('relee:sign', 1)	# plus
+					ps.setVolt(relee_plus)
+					self.setParam(reason, relee_plus)
+				elif value == relee_minus:
+					self.setParam('relee:sign', 0)	# minus
+					ps.setVolt(relee_minus)
+					self.setParam(reason, relee_minus)
+				return -1
+			elif reason == 'relee:curr': 
+				return -1
+
 		if 'volt' in reason: ps.setVolt(value)
 		elif 'curr' in reason: ps.setCurr(value)
-		#zps_conn = False
 		zps_lock.release()
 
 		if status:
