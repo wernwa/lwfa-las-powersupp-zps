@@ -7,6 +7,7 @@ import os
 
 from pcaspy import Driver, SimpleServer, Severity
 import random
+import math
 import thread
 import serial
 from SockConn import SockConn
@@ -33,17 +34,28 @@ ps8 = PowerSupply(HOST,PORT,8)
 ps9 = PowerSupply(HOST,PORT,9)
 ps10 = PowerSupply(HOST,PORT,10)
 
+ps_to_magnet = {
+	ps2 : 'q1',
+	ps3 : 'q2',
+	ps4 : 'q3',
+	ps5 : 'q4',
+	ps6 : 'q5',
+	ps7 : 'q6',
+	ps8 : 'q7',
+	ps9 : 'd1',
+	ps10 : 'd2',
+}
+
 prefix_to_ps = {
-	'relee' : ps_relee,
-	'q1'	: ps2,
-	'q2'	: ps3,
-	'q3'	: ps4,
-	'q4'	: ps5,
-	'q5'	: ps6,
-	'q6'	: ps7,
-	'q7'	: ps8,
-	'd1'	: ps9,
-	'd2'	: ps10,
+	'zps:2'	: ps2,
+	'zps:3'	: ps3,
+	'zps:4'	: ps4,
+	'zps:5'	: ps5,
+	'zps:6'	: ps6,
+	'zps:7'	: ps7,
+	'zps:8'	: ps8,
+	'zps:9'	: ps9,
+	'zps:10': ps10,
 }
 
 ps_to_prefix = {}
@@ -60,28 +72,32 @@ zps_conn = False
 
 active_ps_list = []
 
-relee_plus = 0	# V
-relee_minus = 20	#V
+relee_sign = -1.0	# plus and minus
+relee_plus = 0.0	# V
+relee_minus = 20.0	#V
 
 prefix = 'shicane:'
 pvdb={
-	'relee:sign': {
+	'zps:relee:sign': {
         'type' : 'enum',
         'enums': ['-', '+']
 	},
 	
-#	'relee:volt': {
-#		'prec' : 3,'unit' : 'V'
-#	},
-#
-#	'relee:curr': {
-#		'prec' : 3,'unit' : 'A'
-#	},
+	'zps:relee:volt': {
+		'prec' : 3,'unit' : 'V'
+	},
+
+	'zps:relee:curr': {
+		'prec' : 3,'unit' : 'A'
+	},
 }
 for name in prefix_to_ps:
 	pvdb['%s:volt'%name] = {'prec' : 3,'unit' : 'V'}
 	pvdb['%s:curr'%name] = {'prec' : 3,'unit' : 'A'}
 
+for name in ['q1','q2','q3','q4','q5','q6','q7','d1','d2']:
+	pvdb['%s:volt'%name] = {'prec' : 3,'unit' : 'V'}
+	pvdb['%s:curr'%name] = {'prec' : 3,'unit' : 'A'}
 
 
 class myDriver(Driver):
@@ -92,6 +108,9 @@ class myDriver(Driver):
 		global active_ps_list
 		try:
 			s = SockConn(HOST, PORT)
+			#active_ps_list.append(ps_relee)
+			s.command('INST:NSEL %d\nOUTP:STAT ON'%ps_relee.NR)
+			print '%s powersupplyNR %d [connection '%('zps:relee',ps_relee.NR), colored('OK', 'green'),']'
 		except socket.error, msg:
 			print colored('Error: ', 'red'),"main LAN zps powersupply does not respond! %s"%msg
 			sys.exit(-1)
@@ -102,7 +121,7 @@ class myDriver(Driver):
 				idn = s.question('INST:NSEL %d\n*IDN?\n'%ps.NR,timeout=0.3)
 				#print idn
 				active_ps_list.append(ps)
-				print '%s powersupplyNR %d [connection '%(ps_to_prefix[ps],ps.NR), colored('OK', 'green'),']'
+				print '%s powersupplyNR %d [connection '%(ps_to_magnet[ps],ps.NR), colored('OK', 'green'),']'
 				s.command('INST:NSEL %d\nOUTP:STAT ON'%ps.NR)
 			except socket.timeout:
 				print '%s powersupplyNR %d ['%(ps_to_prefix[ps],ps.NR),colored('disconnect', 'red'),']'
@@ -117,7 +136,7 @@ class myDriver(Driver):
 		#start polling	
 		self.tid = thread.start_new_thread(self.continues_polling,())
 		print '----------------------------------------------------------'
-		print '%d ps up. Start polling with %0.3f seconds (CTRL+C -> end).'%(len(active_ps_list),zps_poling_time)
+		print '%d ps up. Start polling with %0.3f seconds (CTRL+C -> end).'%(len(active_ps_list)+1,zps_poling_time)
 		print '----------------------------------------------------------'
 
     def read(self, reason):
@@ -132,25 +151,32 @@ class myDriver(Driver):
 		return self.getParam(reason)
 		
     def write(self, reason, value):
-		global relee_plus, relee_minus
+		global relee_plus, relee_minus, relee_sign
 		#TODO read status
 		status = True
-		ps = record_to_ps[reason]
+		ps = None
+		if 'relee' in reason : ps = ps_relee
+		elif reason in record_to_ps: ps = record_to_ps[reason]
+		if ps==None: return False
 
 		zps_lock.acquire()
-		if ps == ps_relee:
-			if reason == 'relee:volt': 
-				if value == relee_plus:
-					self.setParam('relee:sign', 1)	# plus
-					ps.setVolt(relee_plus)
-					self.setParam(reason, relee_plus)
-				elif value == relee_minus:
-					self.setParam('relee:sign', 0)	# minus
-					ps.setVolt(relee_minus)
-					self.setParam(reason, relee_minus)
-				return -1
-			elif reason == 'relee:curr': 
-				return -1
+		#if ps == ps_relee and reason == 'zps:relee:volt':
+		#	if float(value) == relee_plus:
+		#		#self.setParam('zps:relee:sign', 1)	# plus
+		#		ps.setVolt(relee_plus)
+		#		self.setParam(reason, relee_plus)
+		#		relee_sign=1.0
+		#		print 'PLUS'
+		#		return True
+		#	elif float(value) == relee_minus:
+		#		#self.setParam('zps:relee:sign', 0)	# minus
+		#		ps.setVolt(relee_minus)
+		#		self.setParam(reason, relee_minus)
+		#		relee_sign=-1.0
+		#		print 'MINUS'
+		#		return True
+		#	else: 
+		#		return False
 
 		if 'volt' in reason: ps.setVolt(value)
 		elif 'curr' in reason: ps.setCurr(value)
@@ -158,22 +184,38 @@ class myDriver(Driver):
 
 		if status:
 			self.setParam(reason, value)
+		
+		# update magnet record
+		if ps in ps_to_magnet:
+			if 'volt' in reason: self.setParam('%s:volt'%ps_to_magnet[ps], relee_sign*value)
+			elif 'curr' in reason: self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*value)
 
 		return status
 
 
     def continues_polling(self):
-		global active_ps_list
+		global active_ps_list, relee_sign, relee_plus, relee_minus
 		while True:
 			zps_lock.acquire()
 			#while zps_conn == True: time.sleep(0.1)
 			s = SockConn(HOST, PORT)
+			# poll relee
+			volt = s.question('INST:NSEL %d\n:measure:voltage?'%ps_relee.NR)
+			self.setParam('zps:relee:volt', volt)
+			curr = s.question(':measure:current?')
+			self.setParam('zps:relee:curr', curr)
+			if (round(float(volt))==relee_plus): relee_sign=1.0
+			elif (round(float(volt))==relee_minus): relee_sign=-1.0
+			# poll other ps
 			for ps in active_ps_list:
 				volt = s.question('INST:NSEL %d\n:measure:voltage?'%ps.NR)
 				self.setParam('%s:volt'%ps_to_prefix[ps], volt)
+				self.setParam('%s:volt'%ps_to_magnet[ps], relee_sign*float(volt))
+
 				curr = s.question(':measure:current?')
 				self.setParam('%s:curr'%ps_to_prefix[ps], curr)
-				#print ps.NR,volt,curr,ps_to_prefix[ps]
+				self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*float(curr))
+				
 
 			s.__del__()
 			zps_lock.release()
