@@ -177,11 +177,11 @@ class myDriver(Driver):
 				status=True
 			else: 
 				status=False
-			zps_lock.release()
 			# update all magnet signs
 			for ps in ps_to_magnet:
 				self.setParam('%s:volt'%ps_to_magnet[ps], relee_sign*math.fabs(self.getParam('%s:volt'%ps_to_magnet[ps])))
 				self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*math.fabs(self.getParam('%s:curr'%ps_to_magnet[ps])))
+			zps_lock.release()
 			return status
 		else:
 			if 'volt' in reason: ps.setVolt(value)
