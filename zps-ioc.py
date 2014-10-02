@@ -74,7 +74,7 @@ active_ps_list = []
 
 relee_sign = -1.0	# plus and minus
 relee_plus = 0.0	# V
-relee_minus = 20.0	#V
+relee_minus = 24.0	#V
 
 prefix = 'shicane:'
 pvdb={
@@ -160,37 +160,43 @@ class myDriver(Driver):
 		if ps==None: return False
 
 		zps_lock.acquire()
-		#if ps == ps_relee and reason == 'zps:relee:volt':
-		#	if float(value) == relee_plus:
-		#		#self.setParam('zps:relee:sign', 1)	# plus
-		#		ps.setVolt(relee_plus)
-		#		self.setParam(reason, relee_plus)
-		#		relee_sign=1.0
-		#		print 'PLUS'
-		#		return True
-		#	elif float(value) == relee_minus:
-		#		#self.setParam('zps:relee:sign', 0)	# minus
-		#		ps.setVolt(relee_minus)
-		#		self.setParam(reason, relee_minus)
-		#		relee_sign=-1.0
-		#		print 'MINUS'
-		#		return True
-		#	else: 
-		#		return False
+		if ps == ps_relee and reason == 'zps:relee:volt':
+			if float(value) == relee_plus:
+				self.setParam('zps:relee:sign', 1)	# plus
+				ps.setVolt(relee_plus)
+				self.setParam(reason, relee_plus)
+				relee_sign=1.0
+				#print 'PLUS'
+				status=True
+			elif float(value) == relee_minus:
+				self.setParam('zps:relee:sign', 0)	# minus
+				ps.setVolt(relee_minus)
+				self.setParam(reason, relee_minus)
+				relee_sign=-1.0
+				#print 'MINUS'
+				status=True
+			else: 
+				status=False
+			zps_lock.release()
+			# update all magnet signs
+			for ps in ps_to_magnet:
+				self.setParam('%s:volt'%ps_to_magnet[ps], relee_sign*math.fabs(self.getParam('%s:volt'%ps_to_magnet[ps])))
+				self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*math.fabs(self.getParam('%s:curr'%ps_to_magnet[ps])))
+			return status
+		else:
+			if 'volt' in reason: ps.setVolt(value)
+			elif 'curr' in reason: ps.setCurr(value)
+			zps_lock.release()
 
-		if 'volt' in reason: ps.setVolt(value)
-		elif 'curr' in reason: ps.setCurr(value)
-		zps_lock.release()
-
-		if status:
-			self.setParam(reason, value)
+			if status:
+				self.setParam(reason, value)
 		
-		# update magnet record
-		if ps in ps_to_magnet:
-			if 'volt' in reason: self.setParam('%s:volt'%ps_to_magnet[ps], relee_sign*value)
-			elif 'curr' in reason: self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*value)
+			# update magnet record
+			if ps in ps_to_magnet:
+				if 'volt' in reason: self.setParam('%s:volt'%ps_to_magnet[ps], relee_sign*value)
+				elif 'curr' in reason: self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*value)
 
-		return status
+			return status
 
 
     def continues_polling(self):
