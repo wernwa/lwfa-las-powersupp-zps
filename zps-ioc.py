@@ -80,6 +80,13 @@ relee_minus = 24.0	#V
 prefix = 'shicane:'
 pvdb={
 	'demag': {},
+	'demag:steps': {
+		'type' : 'int'
+	},
+	'demag:sleep': {
+		'type' : 'float',
+		'prec' : 3,'unit' : 'seconds'
+	},
 
 	'zps:relee:sign': {
         'type' : 'enum',
@@ -117,6 +124,10 @@ class myDriver(Driver):
 	def  __init__(self):
 		super(myDriver, self).__init__()
 		
+		self.setParam('demag', 0)
+		self.setParam('demag:sleep', 1)
+		self.setParam('demag:steps', 20)
+
 		# check connection to the power supplies
 		global active_ps_list
 		try:
@@ -155,21 +166,22 @@ class myDriver(Driver):
 
 	def read(self, reason):
 
-		if reason=='demag':
-			self.thred_demag_id = thread.start_new_thread(self.demag,())
-			return True
 
 		return self.getParam(reason)
-		
+
+#	def demag(self):
+#		print 'demag hier'
+
 	def demag(self):
 		global active_ps_list, relee_sign, relee_plus, relee_minus
-		print 'starting to demagnetisice all active magnets'
+		print 'starting demagnetesization of all active magnets'
 		ps_heightV = []
 		for ps in active_ps_list:
 			ps_heightV.append( float(self.getParam('%s:volt'%ps_to_prefix[ps])) )
 
 		''' do demag in steps '''
-		steps = 20
+		sleep_sec = self.getParam('demag:sleep')
+		steps = self.getParam('demag:steps')
 		zps_lock.acquire()
 		for count in range(1,steps):
 			s = SockConn(HOST, PORT)
@@ -217,7 +229,7 @@ class myDriver(Driver):
 
 			s.__del__()
 			self.updatePVs()
-			time.sleep(1)
+			time.sleep(sleep_sec)
 
 		s = SockConn(HOST, PORT)
 		''' set all ps to 0 '''
@@ -232,6 +244,7 @@ class myDriver(Driver):
 
 		s.__del__()
 		zps_lock.release()
+		self.setParam('demag',0)
 		self.updatePVs()
 
 
@@ -240,6 +253,11 @@ class myDriver(Driver):
 		#TODO read status
 		status = True
 		ps = None
+
+		if reason=='demag':
+			self.thred_demag_id = thread.start_new_thread(self.demag,())
+			return True
+
 		if 'relee' in reason : ps = ps_relee
 		elif reason in record_to_ps: ps = record_to_ps[reason]
 		if ps==None: return False
