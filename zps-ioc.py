@@ -71,6 +71,7 @@ zps_lock = thread.allocate_lock()
 zps_conn = False
 
 active_ps_list = []
+ps_list = [ps2,ps3,ps4,ps5,ps6,ps7,ps8,ps9,ps10]
 
 relee_sign = -1.0	# plus and minus
 relee_plus = 0.0	# V
@@ -188,16 +189,34 @@ class myDriver(Driver):
 				relee_sign=1.0
 
 			for i in range(0,len(active_ps_list)):
-				volts = ps_heightV[i]-count*ps_heightV[i]/steps
+				volts = round(ps_heightV[i]-count*ps_heightV[i]/steps,3)
 				ps = active_ps_list[i]
 				s.command('INST:NSEL %d\n:VOLT %0.3f'%(ps.NR,volts))
 				#ps.setVolt(volts)
 				#print '%d %f (ps:%d %f)' %(count,volts,i,ps_heightV[i])
+				self.setParam('%s:volt'%ps_to_prefix[ps], volts)
 				self.setParam('%s:volt'%ps_to_magnet[ps], relee_sign*volts)
 				curr = s.question(':measure:current?')
+				self.setParam('%s:curr'%ps_to_prefix[ps], curr )
 				self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*float(curr) )
 
+			# refresh ps_all_volt and ps_all_curr
+			curr = s.question('INST:NSEL %d\n:measure:current?'%ps_relee.NR)
+			curr_all = '%s '%curr
+			for ps in ps_list:
+				if ps in active_ps_list:
+					volt_all += '%s '%self.getParam('%s:volt'%ps_to_prefix[ps])
+					curr_all += '%s '%self.getParam('%s:curr'%ps_to_prefix[ps])
+				else:
+					volt_all += 'None '
+					curr_all += 'None '
+			volt_all += '\n'
+			curr_all += '\n'
+			self.setParam('ps_volt_all',volt_all)
+			self.setParam('ps_curr_all',curr_all)
+
 			s.__del__()
+			self.updatePVs()
 			time.sleep(1)
 
 		s = SockConn(HOST, PORT)
@@ -213,7 +232,7 @@ class myDriver(Driver):
 
 		s.__del__()
 		zps_lock.release()
-
+		self.updatePVs()
 
 
 	def write(self, reason, value):
@@ -265,7 +284,7 @@ class myDriver(Driver):
 		return status
 
 	def continues_polling(self):
-		global active_ps_list, relee_sign, relee_plus, relee_minus
+		global ps_list, active_ps_list, relee_sign, relee_plus, relee_minus
 		while True:
 			zps_lock.acquire()
 			#while zps_conn == True: time.sleep(0.1)
@@ -291,7 +310,14 @@ class myDriver(Driver):
 				self.setParam('%s:curr'%ps_to_prefix[ps], curr)
 				self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*float(curr))
 				
-
+			# refresh ps_all_volt and ps_all_curr
+			for ps in ps_list:
+				if ps in active_ps_list:
+					volt_all += '%s '%self.getParam('%s:volt'%ps_to_prefix[ps])
+					curr_all += '%s '%self.getParam('%s:curr'%ps_to_prefix[ps])
+				else:
+					volt_all += 'None '
+					curr_all += 'None '
 			volt_all += '\n'
 			curr_all += '\n'
 			self.setParam('ps_volt_all',volt_all)
