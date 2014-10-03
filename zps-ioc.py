@@ -78,6 +78,8 @@ relee_minus = 24.0	#V
 
 prefix = 'shicane:'
 pvdb={
+	'demag': {},
+
 	'zps:relee:sign': {
         'type' : 'enum',
         'enums': ['-', '+']
@@ -90,6 +92,16 @@ pvdb={
 	'zps:relee:curr': {
 		'prec' : 3,'unit' : 'A'
 	},
+    'ps_volt_all' : {
+       	'type' : 'char',
+	    'count' : 100,
+       	'unit' : 'C',
+    },
+    'ps_curr_all' : {
+       	'type' : 'char',
+	    'count' : 100,
+       	'unit' : 'C',
+    },
 }
 for name in prefix_to_ps:
 	pvdb['%s:volt'%name] = {'prec' : 3,'unit' : 'V'}
@@ -101,7 +113,7 @@ for name in ['q1','q2','q3','q4','q5','q6','q7','d1','d2']:
 
 
 class myDriver(Driver):
-    def  __init__(self):
+	def  __init__(self):
 		super(myDriver, self).__init__()
 		
 		# check connection to the power supplies
@@ -139,18 +151,72 @@ class myDriver(Driver):
 		print '%d ps up. Start polling with %0.3f seconds (CTRL+C -> end).'%(len(active_ps_list)+1,zps_poling_time)
 		print '----------------------------------------------------------'
 
-    def read(self, reason):
-		#ps = record_to_ps[reason]
-		#zps_lock.acquire()
-		#zps_conn = True
-		##if 'volt' in reason: return ps.getVolt()
-		##elif 'curr' in reason: return ps.getCurr()
-		#zps_conn = False
-		#zps_lock.release()
+
+	def read(self, reason):
+
+		if reason=='demag':
+			self.thred_demag_id = thread.start_new_thread(self.demag,())
+			return True
 
 		return self.getParam(reason)
 		
-    def write(self, reason, value):
+	def demag(self):
+		global active_ps_list, relee_sign, relee_plus, relee_minus
+		print 'starting to demagnetisice all active magnets'
+		ps_heightV = []
+		for ps in active_ps_list:
+			ps_heightV.append( float(self.getParam('%s:volt'%ps_to_prefix[ps])) )
+
+		''' do demag in steps '''
+		steps = 20
+		zps_lock.acquire()
+		for count in range(1,steps):
+			s = SockConn(HOST, PORT)
+			if count%2 > 0:
+				self.setParam('zps:relee:sign', 0)	# minus
+				s.command('INST:NSEL %d\n:VOLT %0.3f'%(ps_relee.NR,relee_minus))
+				volt_all = '%s '%relee_minus
+				#ps_relee.setVolt(relee_minus)
+				self.setParam('zps:relee:volt', relee_minus)
+				relee_sign=-1.0
+			else:
+				self.setParam('zps:relee:sign', 1)	# plus
+				s.command('INST:NSEL %d\n:VOLT %0.3f'%(ps_relee.NR,relee_plus))
+				volt_all = '%s '%relee_plus
+				#ps_relee.setVolt(relee_plus)
+				self.setParam('zps:relee:volt', relee_plus)
+				relee_sign=1.0
+
+			for i in range(0,len(active_ps_list)):
+				volts = ps_heightV[i]-count*ps_heightV[i]/steps
+				ps = active_ps_list[i]
+				s.command('INST:NSEL %d\n:VOLT %0.3f'%(ps.NR,volts))
+				#ps.setVolt(volts)
+				#print '%d %f (ps:%d %f)' %(count,volts,i,ps_heightV[i])
+				self.setParam('%s:volt'%ps_to_magnet[ps], relee_sign*volts)
+				curr = s.question(':measure:current?')
+				self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*float(curr) )
+
+			s.__del__()
+			time.sleep(1)
+
+		s = SockConn(HOST, PORT)
+		''' set all ps to 0 '''
+		for ps in active_ps_list:
+			s.command('INST:NSEL %d\n:VOLT 0'%ps.NR)
+			#ps.setVolt(0)
+			#print '%d %f (ps:%d %f)' %(count,volts,i,ps_heightV[i])
+
+		''' set relee to 0 '''
+		s.command('INST:NSEL %d\n:VOLT 0'%ps_relee.NR)
+		#ps_relee.setVolt(0)
+
+		s.__del__()
+		zps_lock.release()
+
+
+
+	def write(self, reason, value):
 		global relee_plus, relee_minus, relee_sign
 		#TODO read status
 		status = True
@@ -187,19 +253,18 @@ class myDriver(Driver):
 			if 'volt' in reason: ps.setVolt(value)
 			elif 'curr' in reason: ps.setCurr(value)
 			zps_lock.release()
+		zps_lock.acquire()
 
-			if status:
-				self.setParam(reason, value)
+		if status:
+			self.setParam(reason, value)
 		
-			# update magnet record
-			if ps in ps_to_magnet:
-				if 'volt' in reason: self.setParam('%s:volt'%ps_to_magnet[ps], relee_sign*value)
-				elif 'curr' in reason: self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*value)
+		# update magnet record
+		if ps in ps_to_magnet:
+			if 'volt' in reason: self.setParam('%s:volt'%ps_to_magnet[ps], relee_sign*value)
+			elif 'curr' in reason: self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*value)
+		return status
 
-			return status
-
-
-    def continues_polling(self):
+	def continues_polling(self):
 		global active_ps_list, relee_sign, relee_plus, relee_minus
 		while True:
 			zps_lock.acquire()
@@ -207,21 +272,30 @@ class myDriver(Driver):
 			s = SockConn(HOST, PORT)
 			# poll relee
 			volt = s.question('INST:NSEL %d\n:measure:voltage?'%ps_relee.NR)
+			volt_all = '%s '%volt
 			self.setParam('zps:relee:volt', volt)
 			curr = s.question(':measure:current?')
+			curr_all = '%s '%curr
 			self.setParam('zps:relee:curr', curr)
 			if (round(float(volt))==relee_plus): relee_sign=1.0
 			elif (round(float(volt))==relee_minus): relee_sign=-1.0
 			# poll other ps
 			for ps in active_ps_list:
 				volt = s.question('INST:NSEL %d\n:measure:voltage?'%ps.NR)
+				volt_all += '%s '%volt
 				self.setParam('%s:volt'%ps_to_prefix[ps], volt)
 				self.setParam('%s:volt'%ps_to_magnet[ps], relee_sign*float(volt))
 
 				curr = s.question(':measure:current?')
+				curr_all += '%s '%curr
 				self.setParam('%s:curr'%ps_to_prefix[ps], curr)
 				self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*float(curr))
 				
+
+			volt_all += '\n'
+			curr_all += '\n'
+			self.setParam('ps_volt_all',volt_all)
+			self.setParam('ps_curr_all',curr_all)
 
 			s.__del__()
 			zps_lock.release()
@@ -232,15 +306,15 @@ class myDriver(Driver):
 if __name__ == '__main__':
 
 
-    server= SimpleServer()
-    server.createPV(prefix, pvdb)
-    driver = myDriver()
+	server= SimpleServer()
+	server.createPV(prefix, pvdb)
+	driver = myDriver()
 
-    # process CA transactions
-    while True:
+	# process CA transactions
+	while True:
 		try:
 			server.process(0.1)
 		except KeyboardInterrupt:
-			print "Bye"
+			print " Bye"
 			sys.exit()
 
