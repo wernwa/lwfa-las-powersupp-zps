@@ -216,6 +216,7 @@ class myDriver(Driver):
 			curr = s.question('INST:NSEL %d\n:measure:current?'%ps_relee.NR)
 			curr_all = '%s '%curr
 			for ps in ps_list:
+				if ps == ps_relee: continue
 				if ps in active_ps_list:
 					volt_all += '%s '%self.getParam('%s:volt'%ps_to_prefix[ps])
 					curr_all += '%s '%self.getParam('%s:curr'%ps_to_prefix[ps])
@@ -319,17 +320,18 @@ class myDriver(Driver):
 			# poll other ps
 			for ps in active_ps_list:
 				volt = s.question('INST:NSEL %d\n:measure:voltage?'%ps.NR)
-				volt_all += '%s '%volt
+				#volt_all += '%s '%volt
 				self.setParam('%s:volt'%ps_to_prefix[ps], volt)
 				self.setParam('%s:volt'%ps_to_magnet[ps], relee_sign*float(volt))
 
 				curr = s.question(':measure:current?')
-				curr_all += '%s '%curr
+				#curr_all += '%s '%curr
 				self.setParam('%s:curr'%ps_to_prefix[ps], curr)
 				self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*float(curr))
 				
 			# refresh ps_all_volt and ps_all_curr
 			for ps in ps_list:
+				if ps == ps_relee: continue
 				if ps in active_ps_list:
 					volt_all += '%s '%self.getParam('%s:volt'%ps_to_prefix[ps])
 					curr_all += '%s '%self.getParam('%s:curr'%ps_to_prefix[ps])
