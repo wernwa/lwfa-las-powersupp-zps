@@ -291,7 +291,6 @@ class myDriver(Driver):
 			if 'volt' in reason: ps.setVolt(value)
 			elif 'curr' in reason: ps.setCurr(value)
 			zps_lock.release()
-		zps_lock.acquire()
 
 		if status:
 			self.setParam(reason, value)
