@@ -22,10 +22,11 @@ alive=True
 zps_poling_time = 0.2        # in sesonds
 HOST, PORT = "zps-netzteile", 8003
 
-global ps_relee, ps2, ps3, ps4, ps5, ps6, ps7, ps8, ps9, ps10
+global ps_relee, ps1, ps2, ps3, ps4, ps5, ps6, ps7, ps8, ps9
 #global q1, q2, q3, q4, q5, q6, q7, d1, d2
 
-ps_relee = PowerSupply(HOST,PORT,1)
+ps_relee = PowerSupply(HOST,PORT,32)
+ps1 = PowerSupply(HOST,PORT,1)
 ps2 = PowerSupply(HOST,PORT,2)
 ps3 = PowerSupply(HOST,PORT,3)
 ps4 = PowerSupply(HOST,PORT,4)
@@ -34,21 +35,21 @@ ps6 = PowerSupply(HOST,PORT,6)
 ps7 = PowerSupply(HOST,PORT,7)
 ps8 = PowerSupply(HOST,PORT,8)
 ps9 = PowerSupply(HOST,PORT,9)
-ps10 = PowerSupply(HOST,PORT,10)
 
 ps_to_magnet = {
-    ps2 : 'q1',
-    ps3 : 'q2',
-    ps4 : 'q3',
-    ps5 : 'q4',
-    ps6 : 'q5',
-    ps7 : 'q6',
-    ps8 : 'q7',
-    ps9 : 'd1',
-    ps10 : 'd2',
+    ps1 : 'q1',
+    ps2 : 'q2',
+    ps3 : 'q3',
+    ps4 : 'q4',
+    ps5 : 'q5',
+    ps6 : 'q6',
+    ps7 : 'q7',
+    ps8 : 'd1',
+    ps9 : 'd2',
 }
 
 prefix_to_ps = {
+    'zps:1'    : ps1,
     'zps:2'    : ps2,
     'zps:3'    : ps3,
     'zps:4'    : ps4,
@@ -57,7 +58,6 @@ prefix_to_ps = {
     'zps:7'    : ps7,
     'zps:8'    : ps8,
     'zps:9'    : ps9,
-    'zps:10': ps10,
 }
 
 ps_to_prefix = {}
@@ -73,7 +73,7 @@ zps_lock = thread.allocate_lock()
 zps_conn = False
 
 active_ps_list = []
-ps_list = [ps2,ps3,ps4,ps5,ps6,ps7,ps8,ps9,ps10]
+ps_list = [ps1,ps2,ps3,ps4,ps5,ps6,ps7,ps8,ps9]
 
 relee_sign = -1.0    # plus and minus
 relee_plus = 0.0    # V
