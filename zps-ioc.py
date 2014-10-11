@@ -100,17 +100,20 @@ pvdb={
     },
 
     'zps:relee:curr': {
-        'prec' : 3,'unit' : 'A'
+        'prec' : 3,'unit' : 'A',
+        'asg'  : 'readonly'
     },
     'ps_volt_all' : {
            'type' : 'char',
-        'count' : 100,
-           'unit' : 'C',
+            'count' : 100,
+            'unit' : 'C',
+            'asg'  : 'readonly'
     },
     'ps_curr_all' : {
            'type' : 'char',
-        'count' : 100,
-           'unit' : 'C',
+            'count' : 100,
+            'unit' : 'C',
+            'asg'  : 'readonly'
     },
 }
 for name in prefix_to_ps:

@@ -122,7 +122,9 @@ for name in prefix_to_ps:
     pvdb['%s:curr'%name] = {'prec' : 3,'unit' : 'A',
                     'lolim': 0, 'hilim': 6,
                     'lolo': -1, 'low':-5,
-                    'hihi': 5.7, 'high': 5.5}
+                    'hihi': 5.7, 'high': 5.5,
+                    'DRVH':6
+                    }
 
 for name in ['q1','q2','q3','q4','q5','q6','q7','d1','d2']:
     pvdb['%s:volt'%name] = {'prec' : 3,'unit' : 'V', 'asg'  : 'readonly'}
