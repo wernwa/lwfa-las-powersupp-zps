@@ -210,15 +210,14 @@ class myDriver(Driver):
 #                if (round(float(volt))==relee_plus): relee_sign=1.0
 #                elif (round(float(volt))==relee_minus): relee_sign=-1.0
 #                # poll other ps
-#                for ps in active_ps_list:
-#                    volt = round(random.random()*60,3)
-#                    self.setParam('%s:volt'%ps_to_prefix[ps], volt)
-#                    self.setParam('%s:volt'%ps_to_magnet[ps], relee_sign*float(volt))
-#
-#                    curr = round(random.random()*7,3)
-#                    #curr_all += '%s '%curr
-#                    self.setParam('%s:curr'%ps_to_prefix[ps], curr)
-#                    self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*float(curr))
+                for ps in active_ps_list:
+                    volt = self.getParam('%s:volt'%ps_to_prefix[ps])
+                    self.setParam('%s:volt'%ps_to_prefix[ps], volt)
+                    self.setParam('%s:volt'%ps_to_magnet[ps], relee_sign*float(volt))
+
+                    curr = self.getParam('%s:curr'%ps_to_prefix[ps])
+                    self.setParam('%s:curr'%ps_to_prefix[ps], curr)
+                    self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*float(curr))
 
                 # refresh ps_all_volt and ps_all_curr
                 for ps in ps_list:
