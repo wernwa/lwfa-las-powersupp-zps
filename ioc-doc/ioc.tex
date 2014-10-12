@@ -1,0 +1,141 @@
+\input{header_script.tex}
+
+\usepackage{amsmath}                % brauche ich um dir Formel zu umrahmen.
+\usepackage{amsfonts}                % brauche ich für die Mengensymbole
+\usepackage{amssymb}
+
+
+\usepackage{listings}
+\lstset{
+   language=bash
+  ,numbers=none
+  ,basicstyle=\fontsize{11}{13}\selectfont\ttfamily
+  ,showstringspaces=false
+}
+\usepackage{ngerman}
+
+\begin{document}
+\textit{\today}\\
+\textit{Walter Werner}
+\\
+\\
+
+
+\section*{$Z^+$-Lambda EPICs IOC Server}
+
+This EPICs IOC Server is designed to control the voltage and current of the 10 $Z^+$-Lambda power-supplies that power 7 quadrupoles and 2 dipoles. The first power-supply is reserved for a relee function and the other 9 power the magnets. Setting the voltage to 20V of the relee power-supply means a positive sign to voltage and current of the magnets and setting the voltage to 0V means a negative sign.
+
+\begin{eqnarray}
+  20\text{V}&\leftarrow \text{POSITIVE}\notag\\ 
+  0 \text{V}&\leftarrow \text{NEGATIVE} \notag
+\end{eqnarray}
+
+\subsection*{Records}
+
+In EPICs therms records are variables that are visible on the LAN to the clients. To change and view the current and voltage of each $Z^+$-Lambda power-supplies threre are 20 variables defined:
+
+\begin{lstlisting}[language=bash]
+shicane:zps:relee:volt
+shicane:zps:relee:curr
+shicane:zps:2:volt
+shicane:zps:2:curr
+shicane:zps:3:volt
+shicane:zps:3:curr
+.
+.
+.
+shicane:zps:10:volt
+shicane:zps:10:curr
+\end{lstlisting}
+
+Per definition the values of each power supply are positive float numbers. In addition to these variables there are magnet records defined to represent also the sign:
+
+
+\begin{lstlisting}[language=bash]
+shicane:q1:volt
+shicane:q1:curr
+shicane:q2:volt
+shicane:q2:curr
+.
+.
+.
+shicane:q7:volt
+shicane:q7:curr
+
+shicane:d1:volt
+shicane:d1:curr
+shicane:d2:volt
+shicane:d2:curr
+\end{lstlisting}
+
+These magnet records are read only variables.
+
+\subsection*{Starting/stopping the IOC-Server}
+
+To start the server go first into the zps directory: 
+
+\begin{lstlisting}[language=bash]
+cd ~/epcis/ioc/zps
+\end{lstlisting}
+
+and start the server:
+
+\begin{lstlisting}[language=bash]
+./zps-ioc.py
+\end{lstlisting}
+
+Every EPICs server needs two ports to communicate with the clients. The Server itself resides in the python file \textbf{zps-ioc.py}. Since there can be many ioc-server on the same host, the ports have to be configured via the EPICS\_CA\_SERVER\_PORT and EPICS\_CA\_REPEATER\_PORT variables. This is done in the \textbf{zps-ioc.sh} shell script. Configure the ports in the shell script and start it like this:
+
+\begin{lstlisting}[language=bash]
+./zps-ioc.sh
+\end{lstlisting}
+
+Stopping the server use CTRL+C key combination. If the server does not react you can open another shell and run the stop script:
+
+\begin{lstlisting}[language=bash]
+./zps-ioc-stop.sh
+\end{lstlisting}
+
+
+
+\subsection*{EPICs command line}
+
+EPICs provides several command line tools for a quick view and change of single Records. \textbf{caget}, \textbf{caput} and \textbf{camonitor} are sufficient for most puposes. To view the current value of the record shicane:zps:2:volt type:
+
+\begin{lstlisting}[language=bash]
+$ caget shicane:zps:2:volt
+\end{lstlisting}
+
+To write a new value 3.14 to the record shicane:zps:2:volt type:
+
+\begin{lstlisting}[language=bash]
+$ caput shicane:zps:2:volt 3.14
+\end{lstlisting}
+
+And to monitor this record for changes type:
+
+\begin{lstlisting}[language=bash]
+$ monitor shicane:zps:2:volt
+\end{lstlisting}
+
+
+
+\section*{Temperature EPICSs-IOC Server}
+
+For the temperature monitoring for each magnet threre are record variables defined:
+
+\begin{lstlisting}[language=bash]
+shicane:q1:temp
+shicane:q2:temp
+shicane:q3:temp
+shicane:q4:temp
+shicane:q5:temp
+shicane:q6:temp
+shicane:q7:temp
+shicane:d1:temp
+shicane:d2:temp
+\end{lstlisting}
+
+
+
+\end{document}
