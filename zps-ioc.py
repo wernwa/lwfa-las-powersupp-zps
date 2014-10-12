@@ -12,29 +12,17 @@ import thread
 import serial
 from SockConn import SockConn
 import socket
-from PowerSupply import PowerSupply
 import time
 import sys
 from termcolor import colored
+from setup import *
 
 alive=True
 
-zps_poling_time = 0.2        # in sesonds
-HOST, PORT = "zps-netzteile", 8003
 
 global ps_relee, ps1, ps2, ps3, ps4, ps5, ps6, ps7, ps8, ps9
 #global q1, q2, q3, q4, q5, q6, q7, d1, d2
 
-ps_relee = PowerSupply(HOST,PORT,32)
-ps1 = PowerSupply(HOST,PORT,1)
-ps2 = PowerSupply(HOST,PORT,2)
-ps3 = PowerSupply(HOST,PORT,3)
-ps4 = PowerSupply(HOST,PORT,4)
-ps5 = PowerSupply(HOST,PORT,5)
-ps6 = PowerSupply(HOST,PORT,6)
-ps7 = PowerSupply(HOST,PORT,7)
-ps8 = PowerSupply(HOST,PORT,8)
-ps9 = PowerSupply(HOST,PORT,9)
 
 ps_to_magnet = {
     ps1 : 'q1',
@@ -218,10 +206,10 @@ class myDriver(Driver):
                 #ps.setVolt(volts)
                 #print '%d %f (ps:%d %f)' %(count,volts,i,ps_heightV[i])
                 self.setParam('%s:volt'%ps_to_prefix[ps], volts)
-                self.setParam('%s:volt'%ps_to_magnet[ps], relee_sign*volts)
+                self.setParam('%s:volt'%ps_to_magnet[ps], ps.magn_sign*relee_sign*volts)
                 curr = s.question(':measure:current?')
                 self.setParam('%s:curr'%ps_to_prefix[ps], curr )
-                self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*float(curr) )
+                self.setParam('%s:curr'%ps_to_magnet[ps], ps.magn_sign*relee_sign*float(curr) )
 
             # refresh ps_all_volt and ps_all_curr
             curr = s.question('INST:NSEL %d\n:measure:current?'%ps_relee.NR)
@@ -294,8 +282,8 @@ class myDriver(Driver):
                 status=False
             # update all magnet signs
             for ps in ps_to_magnet:
-                self.setParam('%s:volt'%ps_to_magnet[ps], relee_sign*math.fabs(self.getParam('%s:volt'%ps_to_magnet[ps])))
-                self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*math.fabs(self.getParam('%s:curr'%ps_to_magnet[ps])))
+                self.setParam('%s:volt'%ps_to_magnet[ps], ps.magn_sign*relee_sign*abs(self.getParam('%s:volt'%ps_to_magnet[ps])))
+                self.setParam('%s:curr'%ps_to_magnet[ps], ps.magn_sign*relee_sign*abs(self.getParam('%s:curr'%ps_to_magnet[ps])))
             zps_lock.release()
             return status
         else:
@@ -308,8 +296,8 @@ class myDriver(Driver):
 
         # update magnet record
         if ps in ps_to_magnet:
-            if 'volt' in reason: self.setParam('%s:volt'%ps_to_magnet[ps], relee_sign*value)
-            elif 'curr' in reason: self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*value)
+            if 'volt' in reason: self.setParam('%s:volt'%ps_to_magnet[ps], ps.magn_sign*relee_sign*value)
+            elif 'curr' in reason: self.setParam('%s:curr'%ps_to_magnet[ps], ps.magn_sign*relee_sign*value)
         return status
 
     def continues_polling(self):
@@ -333,12 +321,12 @@ class myDriver(Driver):
                     volt = s.question('INST:NSEL %d\n:measure:voltage?'%ps.NR)
                     #volt_all += '%s '%volt
                     self.setParam('%s:volt'%ps_to_prefix[ps], volt)
-                    self.setParam('%s:volt'%ps_to_magnet[ps], relee_sign*float(volt))
+                    self.setParam('%s:volt'%ps_to_magnet[ps], ps.magn_sign*relee_sign*float(volt))
 
                     curr = s.question(':measure:current?')
                     #curr_all += '%s '%curr
                     self.setParam('%s:curr'%ps_to_prefix[ps], curr)
-                    self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*float(curr))
+                    self.setParam('%s:curr'%ps_to_magnet[ps], ps.magn_sign*relee_sign*float(curr))
 
                 # refresh ps_all_volt and ps_all_curr
                 for ps in ps_list:

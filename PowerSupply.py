@@ -3,26 +3,27 @@ import sys
 import time
 import SockConn
 
-  
+
 class PowerSupply:
   NR=None
   connection=None
   HOST=None
   PORT=None
-  
-  def __init__(self,host,port,nr):
+
+  def __init__(self,host,port,nr,magn_sign=1):
     self.NR=nr
     #self.connection=con
     self.HOST=host
     self.PORT=port
     #self.connection.command("INST:NSEL {}".format(self.NR))
-    
+    self.magn_sign=magn_sign
+
   def getCurr(self):
     s = SockConn.SockConn(self.HOST, self.PORT)
 	# SCPI: MEASure:CURRent? (MC?)
     answer = s.question("INST:NSEL {}\nmeasure:current?".format(self.NR))
     return answer
-    
+
   def setCurr(self,curr):
     s = SockConn.SockConn(self.HOST, self.PORT)
 	# SCPI: MEASure:CURRent? (MC?)
@@ -34,7 +35,7 @@ class PowerSupply:
 	# SCPI: MEASure:Voltage? (MV?)
     answer = s.question("INST:NSEL {}\n:measure:voltage?".format(self.NR))
     return answer
-    
+
   def setVolt(self,volt):
     s = SockConn.SockConn(self.HOST, self.PORT)
 	# SCPI: MEASure:Voltage? (MV?)
