@@ -357,8 +357,7 @@ class myDriver(Driver):
                 s.__del__()
                 zps_lock.release()
             except Exception as e:
-                print '%s'%e.message
-                print 'Exiting due to socket error.'
+                print 'Err',e
                 alive=False
 
             self.updatePVs()
