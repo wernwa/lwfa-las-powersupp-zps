@@ -36,6 +36,8 @@ ps7 = PowerSupply(HOST,PORT,7)
 ps8 = PowerSupply(HOST,PORT,8)
 ps9 = PowerSupply(HOST,PORT,9)
 
+ps1.magn_sign=-1
+
 ps_to_magnet = {
     ps1 : 'q1',
     ps2 : 'q2',
@@ -103,12 +105,12 @@ pvdb={
     'zps:relee:curr': {
         'prec' : 3,'unit' : 'A'
     },
-    'ps_volt_all' : {
+    'magn_volt_all' : {
            'type' : 'char',
         'count' : 100,
            'unit' : 'C',
     },
-    'ps_curr_all' : {
+    'magn_curr_all' : {
            'type' : 'char',
         'count' : 100,
            'unit' : 'C',
@@ -201,11 +203,9 @@ class myDriver(Driver):
 
 #                volt = round(random.randint(0,1)*relee_plus,3)
                 volt = self.getParam('zps:relee:volt')
-                volt_all = '%s '%volt
 #                self.setParam('zps:relee:volt', volt)
 #                curr = round(random.random(),3)
                 curr = self.getParam('zps:relee:curr')
-                curr_all = '%s '%curr
 #                self.setParam('zps:relee:curr', random.random())
 #                if (round(float(volt))==relee_plus): relee_sign=1.0
 #                elif (round(float(volt))==relee_minus): relee_sign=-1.0
@@ -213,25 +213,27 @@ class myDriver(Driver):
                 for ps in active_ps_list:
                     volt = self.getParam('%s:volt'%ps_to_prefix[ps])
                     self.setParam('%s:volt'%ps_to_prefix[ps], volt)
-                    self.setParam('%s:volt'%ps_to_magnet[ps], relee_sign*float(volt))
+                    self.setParam('%s:volt'%ps_to_magnet[ps], ps.magn_sign*relee_sign*float(volt))
 
                     curr = self.getParam('%s:curr'%ps_to_prefix[ps])
                     self.setParam('%s:curr'%ps_to_prefix[ps], curr)
-                    self.setParam('%s:curr'%ps_to_magnet[ps], relee_sign*float(curr))
+                    self.setParam('%s:curr'%ps_to_magnet[ps], ps.magn_sign*relee_sign*float(curr))
 
                 # refresh ps_all_volt and ps_all_curr
+                volt_all = ''
+                curr_all = ''
                 for ps in ps_list:
                     if ps == ps_relee: continue
                     if ps in active_ps_list:
-                        volt_all += '%s '%self.getParam('%s:volt'%ps_to_prefix[ps])
-                        curr_all += '%s '%self.getParam('%s:curr'%ps_to_prefix[ps])
+                        volt_all += '%s '%(ps.magn_sign*relee_sign*self.getParam('%s:volt'%ps_to_prefix[ps]))
+                        curr_all += '%s '%(ps.magn_sign*relee_sign*self.getParam('%s:curr'%ps_to_prefix[ps]))
                     else:
                         volt_all += 'None '
                         curr_all += 'None '
                 volt_all += '\n'
                 curr_all += '\n'
-                self.setParam('ps_volt_all',volt_all)
-                self.setParam('ps_curr_all',curr_all)
+                self.setParam('magn_volt_all',volt_all)
+                self.setParam('magn_curr_all',curr_all)
 
             except Exception as e:
                 print '%s'%e.message
