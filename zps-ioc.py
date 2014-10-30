@@ -16,6 +16,7 @@ import time
 import sys
 from termcolor import colored
 from setup import *
+import traceback
 
 alive=True
 
@@ -189,10 +190,49 @@ class myDriver(Driver):
         return self.getParam(reason)
 
 
+    def get_relee_invert(self):
+        global relee_sign, relee_plus, relee_minus
+        if relee_sign==1.0: return relee_minus
+        elif relee_sign==-1.0: return relee_plus
+
+
 
     def demag(self):
-        global active_ps_list, relee_sign, relee_plus, relee_minus
         print 'starting demagnetesization of all active magnets'
+        # demag duration set status to BUSY
+        for i in range(1,10):
+            self.setParam('zps:%d:curr:status'%i,1)
+
+        # get the actuall currents 
+        ps_heightCurr = []
+        curr_max = 0
+        for ps in active_ps_list:
+            curr = float(self.getParam('%s:curr'%ps_to_prefix[ps]))
+            if curr_max<curr: curr_max=curr
+            ps_heightCurr.append( float(curr) )
+
+        # first goto zero
+        self.demag_0()
+
+        
+        #''' do demag in steps '''
+        #sleep_sec = self.getParam('demag:sleep')
+        steps = int(self.getParam('demag:steps'))
+
+        for count in range(1,steps+1):
+            ps_destCurr = []
+            for curr in ps_heightCurr:
+                ps_destCurr.append(round(curr-count*curr/float(steps),3))
+            self.demag_triangle(ps_destCurr)
+
+        # demag duration set status to IDLE
+        for i in range(1,10):
+            self.setParam('zps:%d:curr:status'%i,0)
+        print 'Demag DONE'
+
+        
+    def demag_0(self):
+        global active_ps_list, relee_sign, relee_plus, relee_minus
         ps_heightCurr = []
         curr_max = 0
         for ps in active_ps_list:
@@ -211,31 +251,30 @@ class myDriver(Driver):
         relee_steps = int(round(relee_steps/2.0))
         #print 'steps',relee_steps
 
-        VOLT_str = '24,0,'
-        VOLT_str = VOLT_str[:len(VOLT_str)-1]
-        DWEL_str = '%0.2f,%0.2f,'%(step_size_sec,step_size_sec)
-        DWEL_str = DWEL_str[:len(DWEL_str)-1]
+#        VOLT_str = '24,0,'
+#        VOLT_str = VOLT_str[:len(VOLT_str)-1]
+#        DWEL_str = '%0.2f,%0.2f,'%(step_size_sec,step_size_sec)
+#        DWEL_str = DWEL_str[:len(DWEL_str)-1]
 
 
         zps_lock.acquire()
         s = SockConn(HOST, PORT)
 
-        scpi_ps='''
-INST:NSEL %d
-TRIG:SOUR BUS
-VOLT:MODE LIST
-LIST:VOLT %s
-LIST:DWEL %s
-LIST:COUNT %d
-LIST:STEP AUTO
-INIT:CONT OFF
-INIT
+#        scpi_ps='''
+#INST:NSEL %d
+#TRIG:SOUR BUS
+#VOLT:MODE LIST
+#LIST:VOLT %s
+#LIST:DWEL %s
+#LIST:COUNT %d
+#LIST:STEP AUTO
+#INIT:CONT OFF
+#INIT
+#
+#*TRG
+#'''%(ps_relee.NR,VOLT_str,DWEL_str,relee_steps)
 
-*TRG
-'''%(ps_relee.NR,VOLT_str,DWEL_str,relee_steps)
-
-
-        #print scpi_ps
+        scpi_ps=''
 
 
         for i in range(0,len(active_ps_list)):
@@ -262,14 +301,118 @@ INIT
 
         s.__del__()
         zps_lock.release()
-
-        # demag duration set status
-        for i in range(1,10):
-            self.setParam('zps:%d:curr:status'%i,1)
+        
+        # sleep until all magnets goes down
         time.sleep(duration_sec)
-        for i in range(1,10):
-            self.setParam('zps:%d:curr:status'%i,0)
-        print 'Demag DONE'
+    
+        # sleep some relax time
+        time.sleep(0.1)
+
+        # invert sign of the relee
+        self.write('zps:relee:volt',self.get_relee_invert())
+
+
+    def demag_triangle(self, ps_heightCurr):
+        global active_ps_list, relee_sign, relee_plus, relee_minus
+        curr_max = 0
+        
+        for curr in ps_heightCurr:
+            if curr_max<curr: curr_max=curr
+        
+
+        duration_sec = curr_max/step_velocity
+        if duration_sec==0:
+            #print 'duration_sec ',duration_sec
+            return
+
+
+        step_size_sec = 1.0
+        relee_steps = duration_sec/step_size_sec
+        relee_steps = int(round(relee_steps/2.0))
+
+        # goto triangle peak
+        zps_lock.acquire()
+        s = SockConn(HOST, PORT)
+
+
+        scpi_ps=''
+
+
+        for i in range(0,len(active_ps_list)):
+            ps = active_ps_list[i]
+            #print ps.NR,ps_heightCurr[i]
+            #print 'psNr',ps.NR
+            scpi_ps+='''
+INST:NSEL %d
+TRIG:SOUR BUS
+CURR:MODE WAVE
+LIST:CURR %0.2f
+LIST:DWEL %0.2f
+LIST:COUNT 1
+LIST:STEP AUTO
+INIT:CONT OFF
+INIT
+
+*TRG
+        '''%(ps.NR,ps_heightCurr[i],ps_heightCurr[i]/step_velocity)
+        # init all ps
+        s.command(scpi_ps)
+
+        #print scpi_ps
+
+        s.__del__()
+        zps_lock.release()
+        
+        # sleep until all magnets goes down
+        time.sleep(duration_sec)
+    
+        # sleep some relax time
+        time.sleep(0.1)
+
+
+
+
+        # goto Zero
+        zps_lock.acquire()
+        s = SockConn(HOST, PORT)
+
+
+        scpi_ps=''
+
+
+        for i in range(0,len(active_ps_list)):
+            ps = active_ps_list[i]
+            #print ps.NR,ps_heightCurr[i]
+            #print 'psNr',ps.NR
+            scpi_ps+='''
+INST:NSEL %d
+TRIG:SOUR BUS
+CURR:MODE WAVE
+LIST:CURR 0
+LIST:DWEL %0.2f
+LIST:COUNT 1
+LIST:STEP AUTO
+INIT:CONT OFF
+INIT
+
+*TRG
+        '''%(ps.NR,ps_heightCurr[i]/step_velocity)
+        # init all ps
+        s.command(scpi_ps)
+
+        #print scpi_ps
+
+        s.__del__()
+        zps_lock.release()
+        
+        # sleep until all magnets goes down
+        time.sleep(duration_sec)
+    
+        # sleep some relax time
+        time.sleep(0.1)
+
+        # invert sign of the relee
+        self.write('zps:relee:volt',self.get_relee_invert())
 
 
 
@@ -491,8 +634,8 @@ INIT
                 for ps in ps_list:
                     if ps == ps_relee: continue
                     if ps in active_ps_list:
-                        volt_all += '%s '%(ps.magn_sign*relee_sign*self.getParam('%s:volt'%ps_to_prefix[ps]))
-                        curr_all += '%s '%(ps.magn_sign*relee_sign*self.getParam('%s:curr'%ps_to_prefix[ps]))
+                        volt_all += '%s '%(ps.magn_sign*relee_sign*float(self.getParam('%s:volt'%ps_to_prefix[ps])))
+                        curr_all += '%s '%(ps.magn_sign*relee_sign*float(self.getParam('%s:curr'%ps_to_prefix[ps])))
                     else:
                         volt_all += 'None '
                         curr_all += 'None '
@@ -504,7 +647,8 @@ INIT
                 s.__del__()
                 zps_lock.release()
             except Exception as e:
-                print 'Err',e
+                print traceback.format_exc()
+                #print 'Err',e
                 alive=False
 
             self.updatePVs()

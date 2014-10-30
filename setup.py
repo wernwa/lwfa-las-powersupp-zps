@@ -5,7 +5,8 @@ step_velocity=0.25
 
 
 zps_poling_time = 0.2        # in sesonds
-HOST, PORT = "zps-netzteile", 8003
+#HOST, PORT = "zps-netzteile", 8003
+HOST, PORT = "localhost", 8003
 
 ps_relee = PowerSupply(HOST,PORT,31)
 ps1 = PowerSupply(HOST,PORT,1,magn_sign=-1)
