@@ -68,7 +68,7 @@ relee_sign = -1.0    # plus and minus
 relee_plus = 0.0    # V
 relee_minus = 24.0    #V
 
-prefix = 'shicane:'
+prefix = 'chicane:'
 pvdb={
     'demag': {},
     'demag:steps': {
