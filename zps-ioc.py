@@ -138,7 +138,7 @@ class myDriver(Driver):
 
         self.setParam('demag', 0)
         self.setParam('demag:sleep', 1)
-        self.setParam('demag:steps', 20)
+        self.setParam('demag:steps', demag_steps)
 
         # check connection to the power supplies
         global active_ps_list
@@ -203,7 +203,7 @@ class myDriver(Driver):
         for i in range(1,10):
             self.setParam('zps:%d:curr:status'%i,1)
 
-        # get the actuall currents 
+        # get the actuall currents
         ps_heightCurr = []
         curr_max = 0
         for ps in active_ps_list:
@@ -214,7 +214,7 @@ class myDriver(Driver):
         # first goto zero
         self.demag_0()
 
-        
+
         #''' do demag in steps '''
         #sleep_sec = self.getParam('demag:sleep')
         steps = int(self.getParam('demag:steps'))
@@ -230,7 +230,7 @@ class myDriver(Driver):
             self.setParam('zps:%d:curr:status'%i,0)
         print 'Demag DONE'
 
-        
+
     def demag_0(self):
         global active_ps_list, relee_sign, relee_plus, relee_minus
         ps_heightCurr = []
@@ -301,10 +301,10 @@ INIT
 
         s.__del__()
         zps_lock.release()
-        
+
         # sleep until all magnets goes down
         time.sleep(duration_sec)
-    
+
         # sleep some relax time
         time.sleep(0.1)
 
@@ -315,10 +315,10 @@ INIT
     def demag_triangle(self, ps_heightCurr):
         global active_ps_list, relee_sign, relee_plus, relee_minus
         curr_max = 0
-        
+
         for curr in ps_heightCurr:
             if curr_max<curr: curr_max=curr
-        
+
 
         duration_sec = curr_max/step_velocity
         if duration_sec==0:
@@ -362,10 +362,10 @@ INIT
 
         s.__del__()
         zps_lock.release()
-        
+
         # sleep until all magnets goes down
         time.sleep(duration_sec)
-    
+
         # sleep some relax time
         time.sleep(0.1)
 
@@ -404,10 +404,10 @@ INIT
 
         s.__del__()
         zps_lock.release()
-        
+
         # sleep until all magnets goes down
         time.sleep(duration_sec)
-    
+
         # sleep some relax time
         time.sleep(0.1)
 
@@ -514,6 +514,12 @@ INIT
             self.demag_active=True
             self.thred_demag_id = thread.start_new_thread(self.demag,())
             return True
+
+        if reason=='demag:steps':
+            self.setParam(reason,value)
+            return True
+
+
 
         if 'relee' in reason : ps = ps_relee
         elif reason in record_to_ps: ps = record_to_ps[reason]
