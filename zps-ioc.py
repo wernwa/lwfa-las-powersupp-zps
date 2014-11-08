@@ -230,6 +230,10 @@ class myDriver(Driver):
             self.setParam('zps:%d:curr:status'%i,0)
         print 'Demag DONE'
 
+        self.setParam('demag',0)
+        self.updatePVs()
+        self.demag_active=False
+
 
     def demag_0(self):
         global active_ps_list, relee_sign, relee_plus, relee_minus
@@ -416,6 +420,7 @@ INIT
 
 
 
+
     # conventional demag by sending each step value to the powersupply
     def demag_old(self):
         global active_ps_list, relee_sign, relee_plus, relee_minus
@@ -509,6 +514,8 @@ INIT
         #    #ps_relee.setWaveCurr(value)
         #    #zps_lock.release()
         #    return True
+
+        #if reason=='demag': print 'demag signal',self.demag_active
 
         if reason=='demag' and self.demag_active==False:
             self.demag_active=True
