@@ -4,7 +4,7 @@ from PowerSupply import step_velocity
 # current/time [A/sec]
 step_velocity=0.25
 # cycling steps during the demagnitization
-demag_steps=20
+demag_steps=5.0
 
 
 zps_poling_time = 0.2        # in sesonds

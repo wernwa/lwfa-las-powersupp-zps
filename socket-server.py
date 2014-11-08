@@ -105,10 +105,12 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
 
             matches = [m.groups() for m in regex_curr_change.finditer(self.data)]
             for m in matches:
-                #ps_selected=nr_to_ps[int(m[0])]
-                #ps_selected[ps_CURR]=float(m[1])
-                #curr_time = float(m[2]) # for later use
-                thread.start_new_thread(this.set_curr_in_time,(int(m[0]),float(m[1]),float(m[2]),))
+                ps=nr_to_ps[int(m[0])]
+                curr=float(m[1])
+                curr_time = float(m[2])
+                print int(m[0]),curr,curr_time
+                ps[ps_CURR]=curr
+                #thread.start_new_thread(this.set_curr_in_time,(ps,curr,curr_time,))
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8003
