@@ -62,7 +62,8 @@ def frange(x, y, jump):
 
 
 #regex_curr_change = re.compile(r'LIST:CURR (\S+)', re.MULTILINE)
-regex_curr_change = re.compile(r'INST:NSEL (\S+).*?LIST:CURR (\S+).*?LIST:DWEL (\S+)', re.DOTALL)
+regex_curr_change = re.compile(r'LIST:CURR (\S+).*?LIST:DWEL (\S+)', re.DOTALL)
+regex_curr_change_demag = re.compile(r'INST:NSEL (\S+).*?LIST:CURR (\S+).*?LIST:DWEL (\S+)', re.DOTALL)
 
 
 class MyTCPHandler(SocketServer.BaseRequestHandler):
@@ -75,7 +76,7 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
     """
 
     def set_curr_in_time(self,ps, curr_1, t):
-        steps = 10.0
+        steps = 100.0
         sleep_sec = t/steps
         curr_0 = ps[ps_CURR]
         curr_step = (curr_1 - curr_0)/steps
@@ -113,6 +114,13 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
                 self.request.sendall(num)
 
             matches = [m.groups() for m in regex_curr_change.finditer(self.data)]
+            if len(matches)==1:
+                for m in matches:
+                    curr=float(m[0])
+                    curr_time = float(m[1])
+                    thread.start_new_thread(self.set_curr_in_time,(ps_selected,curr,curr_time,))
+
+            matches = [m.groups() for m in regex_curr_change_demag.finditer(self.data)]
             for m in matches:
                 ps=nr_to_ps[int(m[0])]
                 curr=float(m[1])
