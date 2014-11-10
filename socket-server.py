@@ -4,6 +4,7 @@ import SocketServer
 import re
 from random import random
 import thread
+import time
 
 ps1=[random()*6, random()*30]
 ps2=[random()*6, random()*30]
@@ -49,12 +50,19 @@ ps_selected=None
 #INIT
 
 def frange(x, y, jump):
-    while x < y:
-        yield x
-        x += jump
+    if jump>0:
+        while x < y:
+            yield x
+            x += jump
+    elif jump<0:
+        while x > y:
+            yield x
+            x += jump
+    else: raise Exception('frange: jump is zero')
+
 
 #regex_curr_change = re.compile(r'LIST:CURR (\S+)', re.MULTILINE)
-regex_curr_change = re.compile(r'INST:NSEL (\S+).*?LIST:CURR(\S+).*?LIST:DWEL (\S+)', re.DOTALL)
+regex_curr_change = re.compile(r'INST:NSEL (\S+).*?LIST:CURR (\S+).*?LIST:DWEL (\S+)', re.DOTALL)
 
 
 class MyTCPHandler(SocketServer.BaseRequestHandler):
@@ -66,11 +74,12 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
     client.
     """
 
-    def set_curr_in_time(self,ps, curr_1, time):
+    def set_curr_in_time(self,ps, curr_1, t):
         steps = 10.0
-        sleep_sec = time/steps
+        sleep_sec = t/steps
         curr_0 = ps[ps_CURR]
         curr_step = (curr_1 - curr_0)/steps
+        print 'curr_step',curr_step,'curr_0',curr_0,'curr_1',curr_1
 
         for i in frange(curr_0,curr_1,curr_step):
             time.sleep(sleep_sec)
@@ -108,9 +117,9 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
                 ps=nr_to_ps[int(m[0])]
                 curr=float(m[1])
                 curr_time = float(m[2])
-                print int(m[0]),curr,curr_time
-                ps[ps_CURR]=curr
-                #thread.start_new_thread(this.set_curr_in_time,(ps,curr,curr_time,))
+                #print int(m[0]),curr,curr_time
+                #ps[ps_CURR]=curr
+                thread.start_new_thread(self.set_curr_in_time,(ps,curr,curr_time,))
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8003
