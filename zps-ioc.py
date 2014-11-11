@@ -488,6 +488,12 @@ INIT
                 self.setParam(reason+':status',0)
 
             elif 'curr' in reason:
+                # look at current limit
+                if value > current_limit:
+                    print '%.3f A is above current limit'%value
+                    status=False
+                    return status
+                # if not busy start setting the current
                 if self.getParam(reason+':status')==0:
                     self.setLockedCurrThread(ps,value,reason)
                 else:

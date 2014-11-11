@@ -80,7 +80,7 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
         sleep_sec = t/steps
         curr_0 = ps[ps_CURR]
         curr_step = (curr_1 - curr_0)/steps
-        print 'curr_step',curr_step,'curr_0',curr_0,'curr_1',curr_1
+        #print 'curr_step',curr_step,'curr_0',curr_0,'curr_1',curr_1
 
         for i in frange(curr_0,curr_1,curr_step):
             time.sleep(sleep_sec)
@@ -102,19 +102,19 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
             if m!=None:
                 ps_selected=nr_to_ps[int(m.group(1))]
 
-            if ':measure:voltage?' in self.data:
+            if 'measure:voltage?' in self.data:
                 num = "%.3f\r\n" %(ps_selected[ps_VOLT])
                 self.request.sendall(num)
 
-            elif ':measure:current?' in self.data:
+            elif 'measure:current?' in self.data:
                 num = "%.3f\r\n" %(ps_selected[ps_CURR])
                 self.request.sendall(num)
             elif '*IDN?' in self.data:
                 num = "IDN=%.3f\r\n" %(random())
                 self.request.sendall(num)
 
-            matches = [m.groups() for m in regex_curr_change.finditer(self.data)]
-            if len(matches)==1:
+            if not 'INST:NSEL' in self.data:
+                matches = [m.groups() for m in regex_curr_change.finditer(self.data)]
                 for m in matches:
                     curr=float(m[0])
                     curr_time = float(m[1])

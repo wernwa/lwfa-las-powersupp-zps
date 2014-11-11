@@ -6,6 +6,8 @@ step_velocity=0.25
 # cycling steps during the demagnitization
 demag_steps=5.0
 
+# current limit in Ampere
+current_limit=6.0
 
 zps_poling_time = 0.2        # in sesonds
 #HOST, PORT = "zps-netzteile", 8003
