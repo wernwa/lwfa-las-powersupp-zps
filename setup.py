@@ -4,7 +4,10 @@ from PowerSupply import step_velocity
 # current/time [A/sec]
 step_velocity=0.25
 # cycling steps during the demagnitization
-demag_steps=5.0
+demag_steps=10
+
+# max current remanence (that can recreate the remanence Field)
+current_remanence=0.01
 
 # current limit in Ampere
 current_limit=6.0

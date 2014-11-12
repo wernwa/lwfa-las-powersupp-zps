@@ -82,6 +82,8 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
         curr_step = (curr_1 - curr_0)/steps
         #print 'curr_step',curr_step,'curr_0',curr_0,'curr_1',curr_1
 
+        if curr_step == 0: return
+
         for i in frange(curr_0,curr_1,curr_step):
             time.sleep(sleep_sec)
             ps[ps_CURR]=i

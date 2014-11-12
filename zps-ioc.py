@@ -208,21 +208,24 @@ class myDriver(Driver):
         curr_max = 0
         for ps in active_ps_list:
             curr = float(self.getParam('%s:curr'%ps_to_prefix[ps]))
+            if curr > current_remanence: curr=current_remanence
             if curr_max<curr: curr_max=curr
-            ps_heightCurr.append( float(curr) )
+            ps_heightCurr.append( curr )
 
-        # first goto zero
+        # goto zero
         self.demag_0()
 
 
         #''' do demag in steps '''
         #sleep_sec = self.getParam('demag:sleep')
         steps = int(self.getParam('demag:steps'))
-
+        steps = demag_steps
+        print 'steps',steps,'remanence curr',current_remanence
         for count in range(1,steps+1):
             ps_destCurr = []
             for curr in ps_heightCurr:
                 ps_destCurr.append(round(curr-count*curr/float(steps),3))
+            print count,'I=%s'%ps_destCurr
             self.demag_triangle(ps_destCurr)
 
         # demag duration set status to IDLE
