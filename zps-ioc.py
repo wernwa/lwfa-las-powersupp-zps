@@ -608,10 +608,15 @@ if __name__ == '__main__':
     server.createPV(prefix, pvdb)
     driver = myDriver()
 
+    start_ts = time.time()
+
     # process CA transactions
     while alive:
         try:
             server.process(0.1)
+            ts = time.time() - start_ts
+            sys.stdout.write('%d s\r'%int(round(ts)))
+            sys.stdout.flush()
         except KeyboardInterrupt:
             print " Bye"
             sys.exit()
