@@ -54,6 +54,7 @@ for key in prefix_to_ps: ps_to_prefix[prefix_to_ps[key]]=key
 
 record_to_ps = {}
 for key in prefix_to_ps:
+    record_to_ps['%s:output'%key] = prefix_to_ps[key]
     record_to_ps['%s:volt'%key] = prefix_to_ps[key]
     record_to_ps['%s:curr'%key] = prefix_to_ps[key]
 
@@ -126,6 +127,13 @@ for name in prefix_to_ps:
             'type'  : 'enum',
             'enums' : ['IDLE','BUSY'],
         }
+    pvdb['%s:output'%name] = {      # ps output on/off 1/0
+            'type'  : 'int',
+        }
+    pvdb['%s:online'%name] = {      # ps connected to the main powersupp (no ethernet or no power)
+            'type'  : 'enum',
+            'enums' : ['NO','YES'],
+        }
 
 for name in ['q1','q2','q3','q4','q5','q6','q7','d1','d2']:
     pvdb['%s:volt'%name] = {'prec' : 3,'unit' : 'V', 'asg'  : 'readonly'}
@@ -161,12 +169,14 @@ class myDriver(Driver):
                 idn = s.question('INST:NSEL %d\n*IDN?\n'%ps.NR,timeout=0.3)
                 #print idn
                 active_ps_list.append(ps)
+                self.setParam('zps:%d:online'%ps.NR,1)
                 print '%s powersupplyNR %d [connection '%(ps_to_magnet[ps],ps.NR), colored('OK', 'green'),']'
                 #s.command('INST:NSEL %d\nSYST:REMOTE RMT\nOUTP:STAT ON\n'%ps.NR)
                 s.command('INST:NSEL %d\nABORT\nOUTP:STAT ON\n'%ps.NR)
                 #s.command('INST:NSEL %d\nOUTP:STAT ON\n'%ps.NR)
             except socket.timeout:
                 print '%s powersupplyNR %d ['%(ps_to_prefix[ps],ps.NR),colored('disconnect', 'red'),']'
+                self.setParam('zps:%d:online'%ps.NR,0)
 
         if len(active_ps_list)==0:
             print colored('Error: ', 'red'),'no powersupplies discovered!'
@@ -186,6 +196,16 @@ class myDriver(Driver):
 
     def read(self, reason):
 
+        if 'relee' in reason : ps = ps_relee
+        elif reason in record_to_ps: ps = record_to_ps[reason]
+
+        # get output status
+        if 'output' in reason and ps in active_ps_list:
+            print 'output',ps.NR
+            zps_lock.acquire()
+            output = ps.getOutput()
+            zps_lock.release()
+            self.setParam(reason,float(output))
 
         return self.getParam(reason)
 
@@ -453,10 +473,21 @@ INIT
             return True
 
 
-
         if 'relee' in reason : ps = ps_relee
         elif reason in record_to_ps: ps = record_to_ps[reason]
         if ps==None: return False
+
+        # turn output on/off
+        if 'output' in reason and ps in active_ps_list:
+            if value==0 or value ==1:
+                print 'output',ps.NR
+                zps_lock.acquire()
+                ps.setOutput(value)
+                zps_lock.release()
+                self.setParam(reason,value)
+                return True
+            else: print 'Err: %s ps.Nr:%d value should be 0 or 1'%(reason,self.NR)
+
 
         if ps == ps_relee and reason == 'zps:relee:volt':
             zps_lock.acquire()

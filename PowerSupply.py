@@ -106,3 +106,21 @@ INIT
         s.__del__()
 
 
+    def setOutput(self,value):
+        v = None
+        if value==1: v='ON'
+        elif value==0: v='OFF'
+
+        print v
+
+        s = SockConn(self.HOST, self.PORT)
+        s.command("INST:NSEL %d\nOUTP:STAT %s\n"%(self.NR,v))
+        s.__del__()
+
+    def getOutput(self):
+
+        s = SockConn(self.HOST, self.PORT)
+        answer = s.question("INST:NSEL %d\nOUTP:STAT?\n"%(self.NR))
+        s.__del__()
+
+        return answer

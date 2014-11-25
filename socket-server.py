@@ -6,19 +6,20 @@ from random import random
 import thread
 import time
 
-ps1=[random()*6, random()*30]
-ps2=[random()*6, random()*30]
-ps3=[random()*6, random()*30]
-ps4=[random()*6, random()*30]
-ps5=[random()*6, random()*30]
-ps6=[random()*6, random()*30]
-ps7=[random()*6, random()*30]
-ps8=[random()*6, random()*30]
-ps9=[random()*6, random()*30]
-ps_relee=[random()*6, random()*30]
+ps1=[random()*6, random()*30, 0]
+ps2=[random()*6, random()*30, 0]
+ps3=[random()*6, random()*30, 0]
+ps4=[random()*6, random()*30, 0]
+ps5=[random()*6, random()*30, 0]
+ps6=[random()*6, random()*30, 0]
+ps7=[random()*6, random()*30, 0]
+ps8=[random()*6, random()*30, 0]
+ps9=[random()*6, random()*30, 0]
+ps_relee=[random()*6, random()*30, 0]
 
 ps_VOLT=1
 ps_CURR=0
+ps_OUTPUT=2
 
 nr_to_ps={
     1:ps1,
@@ -65,6 +66,8 @@ def frange(x, y, jump):
 regex_curr_change = re.compile(r'LIST:CURR (\S+).*?LIST:DWEL (\S+)', re.DOTALL)
 regex_curr_change_demag = re.compile(r'INST:NSEL (\S+).*?LIST:CURR (\S+).*?LIST:DWEL (\S+)', re.DOTALL)
 
+ps_off = [2,3]
+
 
 class MyTCPHandler(SocketServer.BaseRequestHandler):
     """
@@ -100,9 +103,13 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
             #print "----- {} wrote: -----".format(self.client_address[0])
             #print self.data
 
+            nr = None
+
             m = re.search('INST:NSEL (\d+)',self.data)
             if m!=None:
-                ps_selected=nr_to_ps[int(m.group(1))]
+                nr = int(m.group(1))
+                if nr not in ps_off:
+                    ps_selected=nr_to_ps[nr]
 
             if 'measure:voltage?' in self.data:
                 num = "%.3f\r\n" %(ps_selected[ps_VOLT])
@@ -113,7 +120,8 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
                 self.request.sendall(num)
             elif '*IDN?' in self.data:
                 num = "IDN=%.3f\r\n" %(random())
-                self.request.sendall(num)
+                if nr not in ps_off:
+                    self.request.sendall(num)
 
             if not 'INST:NSEL' in self.data:
                 matches = [m.groups() for m in regex_curr_change.finditer(self.data)]
@@ -121,6 +129,24 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
                     curr=float(m[0])
                     curr_time = float(m[1])
                     thread.start_new_thread(self.set_curr_in_time,(ps_selected,curr,curr_time,))
+            # set voltage
+            m = re.search(':VOLT (\d+)',self.data)
+            if m!=None:
+                volt = int(m.group(1))
+                ps_selected[ps_VOLT]=volt
+
+            # set output
+            m = re.search('OUTP:STAT (\w+)',self.data)
+            if m!=None:
+                output = m.group(1)
+                if output == 'ON': out=1
+                elif output == 'OFF': out=0
+                ps_selected[ps_OUTPUT]=out
+
+            # get output
+            if 'OUTP:STAT?' in self.data:
+                num = "%.3f\r\n" %(ps_selected[ps_OUTPUT])
+                self.request.sendall(num)
 
             matches = [m.groups() for m in regex_curr_change_demag.finditer(self.data)]
             for m in matches:
