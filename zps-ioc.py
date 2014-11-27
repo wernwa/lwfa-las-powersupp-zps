@@ -201,7 +201,7 @@ class myDriver(Driver):
 
         # get output status
         if 'output' in reason and ps in active_ps_list:
-            print 'output',ps.NR
+            #print 'output',ps.NR
             zps_lock.acquire()
             output = ps.getOutput()
             zps_lock.release()
@@ -480,7 +480,7 @@ INIT
         # turn output on/off
         if 'output' in reason and ps in active_ps_list:
             if value==0 or value ==1:
-                print 'output',ps.NR
+                #print 'output',ps.NR
                 zps_lock.acquire()
                 ps.setOutput(value)
                 zps_lock.release()

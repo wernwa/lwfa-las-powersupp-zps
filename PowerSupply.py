@@ -111,8 +111,6 @@ INIT
         if value==1: v='ON'
         elif value==0: v='OFF'
 
-        print v
-
         s = SockConn(self.HOST, self.PORT)
         s.command("INST:NSEL %d\nOUTP:STAT %s\n"%(self.NR,v))
         s.__del__()
