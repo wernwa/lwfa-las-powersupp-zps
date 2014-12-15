@@ -9,7 +9,7 @@ HOST, PORT = "169.254.2.164", 8003
 # current/time [A/sec]
 step_velocity=0.25
 # cycling steps during the demagnitization
-demag_steps=9
+demag_steps=8
 
 # max current remanence (that can recreate the remanence Field)
 current_remanence=0.1
@@ -23,7 +23,7 @@ zps_poling_time = 0.2        # in sesonds
 # usage: PoerSupply('<host>',<port>,<psNR>[,magn_sign=-1])
 # The last parameter magn_sign is optional and is set to 1 by default
 ps_relee = PowerSupply(HOST,PORT,31)
-ps1 = PowerSupply(HOST,PORT,1,magn_sign=-1)
+ps1 = PowerSupply(HOST,PORT,1,magn_sign=1)
 ps2 = PowerSupply(HOST,PORT,2)
 ps3 = PowerSupply(HOST,PORT,3)
 ps4 = PowerSupply(HOST,PORT,4)
