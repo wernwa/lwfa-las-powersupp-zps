@@ -2,8 +2,8 @@ from PowerSupply import PowerSupply
 from PowerSupply import step_velocity
 
 #HOST, PORT = "zps-netzteile", 8003
-#HOST, PORT = "169.254.2.164", 8003
-HOST, PORT = "localhost", 8003
+HOST, PORT = "169.254.2.164", 8003
+#HOST, PORT = "localhost", 8003
 
 
 # current/time [A/sec]
