@@ -16,7 +16,7 @@ import time
 import sys
 from termcolor import colored
 from setup import *
-import traceback
+import traceback, errno
 
 alive=True
 
@@ -201,7 +201,7 @@ class myDriver(Driver):
 
         # get output status
         if 'output' in reason and ps in active_ps_list:
-            print 'output',ps.NR
+            #print 'output',ps.NR
             zps_lock.acquire()
             output = ps.getOutput()
             zps_lock.release()
@@ -586,6 +586,7 @@ INIT
                 zps_lock.acquire()
                 #while zps_conn == True: time.sleep(0.1)
                 # poll relee
+                time.sleep(0.01)
                 volt = s.question('INST:NSEL %d\n:measure:voltage?'%ps_relee.NR)
                 self.setParam('zps:relee:volt', volt)
                 curr = s.question(':measure:current?')
@@ -621,11 +622,15 @@ INIT
                 self.setParam('magn_curr_all',curr_all)
 
                 s.__del__()
+                time.sleep(0.01)
                 zps_lock.release()
             except Exception as e:
-                print traceback.format_exc()
-                #print 'Err',e
-                alive=False
+                if e.errno == errno.ECONNREFUSED:
+                    print 'Connection to powersupplies refused, poling after 1 sec.'
+                    time.sleep(1)
+                else:
+                    alive=False
+                    print traceback.format_exc()
 
             self.updatePVs()
             time.sleep(zps_poling_time)
@@ -649,6 +654,9 @@ if __name__ == '__main__':
             sys.stdout.write('%d s\r'%int(round(ts)))
             sys.stdout.flush()
         except KeyboardInterrupt:
-            print " Bye"
+            print "User interrupted. Bye"
+            sys.exit()
+        except Exception as e:
+            print traceback.format_exc()
             sys.exit()
 

@@ -57,5 +57,6 @@ class SockConn:
   def __del__(self):
     #print "close socket\n"
     self.sock.close()
+    time.sleep(0.05)
 
 
