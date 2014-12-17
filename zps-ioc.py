@@ -200,12 +200,14 @@ class myDriver(Driver):
         elif reason in record_to_ps: ps = record_to_ps[reason]
 
         # get output status
-        if 'output' in reason and ps in active_ps_list:
-            #print 'output',ps.NR
-            zps_lock.acquire()
-            output = ps.getOutput()
-            zps_lock.release()
-            self.setParam(reason,float(output))
+#        if 'output' in reason and ps in active_ps_list:
+#            #print 'output',ps.NR
+#            zps_lock.acquire()
+#            output = ps.getOutput()
+#            zps_lock.release()
+#            value = float(output)
+#            self.setParam(reason,value)
+#            return value
 
         return self.getParam(reason)
 
@@ -586,7 +588,6 @@ INIT
                 zps_lock.acquire()
                 #while zps_conn == True: time.sleep(0.1)
                 # poll relee
-                time.sleep(0.01)
                 volt = s.question('INST:NSEL %d\n:measure:voltage?'%ps_relee.NR)
                 self.setParam('zps:relee:volt', volt)
                 curr = s.question(':measure:current?')
@@ -605,6 +606,9 @@ INIT
                     self.setParam('%s:curr'%ps_to_prefix[ps], curr)
                     self.setParam('%s:curr'%ps_to_magnet[ps], ps.magn_sign*relee_sign*float(curr))
 
+                    outp = s.question('OUTP:STAT?')
+                    self.setParam('%s:output'%ps_to_prefix[ps],float(outp))
+
                 # refresh magn_all_volt and magn_all_curr
                 volt_all = ''
                 curr_all = ''
@@ -622,7 +626,6 @@ INIT
                 self.setParam('magn_curr_all',curr_all)
 
                 s.__del__()
-                time.sleep(0.01)
                 zps_lock.release()
             except Exception as e:
                 if e.errno == errno.ECONNREFUSED:
