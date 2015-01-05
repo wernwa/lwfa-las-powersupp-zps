@@ -153,34 +153,47 @@ class myDriver(Driver):
         try:
             s = SockConn(HOST, PORT)
             #active_ps_list.append(ps_relee)
-            s.command('INST:NSEL %d\nABORT\nOUTP:STAT ON\n'%ps_relee.NR)
+            s.command('INST:NSEL %d\n*CLS\nOUTP:STAT ON\n'%ps_relee.NR)
+            #s.command('INST:NSEL %d\n*RST\nOUTP:STAT ON\n'%ps_relee.NR)
+            #s.command('INST:NSEL %d\nOUTP:STAT ON\n'%ps_relee.NR)
             print '%s powersupplyNR %d [connection '%('zps:relee',ps_relee.NR), colored('OK', 'green'),']'
         except socket.error, msg:
             print colored('Error: ', 'red'),"main LAN zps powersupply does not respond! %s"%msg
             sys.exit(-1)
 
-        # clear the command structure
-        #for i in [31,1,2,3,4,5,6,7,8,9]:
-        #    s.command('INST:NSEL %d\n*CLS\n'%i)
-        #    time.sleep(0.15)
+
+        time.sleep(1)
 
         for ps in ps_to_prefix:
             try:
-                idn = s.question('INST:NSEL %d\n*IDN?\n'%ps.NR,timeout=0.3)
-                #print idn
+                #ps_relee.ask_for_error(s,psNR=ps.NR)
+                idn = s.question('INST:NSEL %d\n*IDN?\n'%ps.NR,timeout=0.6)
+                ps_relee.ask_for_error(s,psNR=ps.NR)
+                print '%s powersupplyNR %d [connection '%(ps_to_magnet[ps],ps.NR), colored('OK', 'green'),']'
                 active_ps_list.append(ps)
                 self.setParam('zps:%d:online'%ps.NR,1)
-                print '%s powersupplyNR %d [connection '%(ps_to_magnet[ps],ps.NR), colored('OK', 'green'),']'
-                #s.command('INST:NSEL %d\nSYST:REMOTE RMT\nOUTP:STAT ON\n'%ps.NR)
-                s.command('INST:NSEL %d\nABORT\nOUTP:STAT ON\n'%ps.NR)
+
+                #print ps.NR,idn
                 #s.command('INST:NSEL %d\nOUTP:STAT ON\n'%ps.NR)
+
             except socket.timeout:
-                print '%s powersupplyNR %d ['%(ps_to_prefix[ps],ps.NR),colored('disconnect', 'red'),']'
+                print '%s powersupplyNR %d ['%(ps_to_magnet[ps],ps.NR),colored('disconnect', 'red'),']'
                 self.setParam('zps:%d:online'%ps.NR,0)
+
+            time.sleep(0.01)
 
         if len(active_ps_list)==0:
             print colored('Error: ', 'red'),'no powersupplies discovered!'
             sys.exit(-1)
+
+        # clear command structure
+        print 'clearing the command structure...'
+        for ps in active_ps_list:
+            s.command('INST:NSEL %d\nABORT\n*CLS\n'%ps.NR)
+            #ps_relee.ask_for_error(s,psNR=ps.NR)
+            time.sleep(1.5)
+            s.command('INST:NSEL %d\nOUTP:STAT ON\n'%ps.NR)
+
 
         s.__del__()
 
@@ -220,6 +233,17 @@ class myDriver(Driver):
 
 
     def demag(self):
+
+
+#        # ask for errors
+#        zps_lock.acquire()
+#        s = SockConn(HOST, PORT)
+#        for i in range(0,len(active_ps_list)):
+#            ps = active_ps_list[i]
+#            ps_relee.ask_for_error(s,psNR=ps.NR)
+#        s.__del__()
+#        zps_lock.release()
+
         print 'starting demagnetesization of all active magnets'
         # demag duration set status to BUSY
         for i in range(1,10):
@@ -258,6 +282,16 @@ class myDriver(Driver):
         self.setParam('demag',0)
         self.updatePVs()
         self.demag_active=False
+
+
+#        # ask for errors
+#        zps_lock.acquire()
+#        s = SockConn(HOST, PORT)
+#        for i in range(0,len(active_ps_list)):
+#            ps = active_ps_list[i]
+#            ps_relee.ask_for_error(s,psNR=ps.NR)
+#        s.__del__()
+#        zps_lock.release()
 
 
     def demag_0(self):
@@ -325,6 +359,8 @@ INIT
         '''%(ps.NR,ps_heightCurr[i]/step_velocity)
         # init all ps
         s.command(scpi_ps)
+
+
 
         #print scpi_ps
 
@@ -582,31 +618,38 @@ INIT
 
     def continues_polling(self):
         global alive, ps_list, active_ps_list, relee_sign, relee_plus, relee_minus
+        s = None
         while alive:
             try:
                 s = SockConn(HOST, PORT)
                 zps_lock.acquire()
+                ps_relee.ask_for_error(s,psNR=ps_relee.NR)
                 #while zps_conn == True: time.sleep(0.1)
                 # poll relee
                 volt = s.question('INST:NSEL %d\n:measure:voltage?'%ps_relee.NR)
+                ps_relee.ask_for_error(s,psNR=ps_relee.NR)
                 self.setParam('zps:relee:volt', volt)
                 curr = s.question(':measure:current?')
+                ps_relee.ask_for_error(s,psNR=ps_relee.NR)
                 self.setParam('zps:relee:curr', curr)
                 if (round(float(volt))==relee_plus): relee_sign=1.0
                 elif (round(float(volt))==relee_minus): relee_sign=-1.0
                 # poll other ps
                 for ps in active_ps_list:
                     volt = s.question('INST:NSEL %d\n:measure:voltage?'%ps.NR)
+                    ps_relee.ask_for_error(s,psNR=ps.NR)
                     #volt_all += '%s '%volt
                     self.setParam('%s:volt'%ps_to_prefix[ps], volt)
                     self.setParam('%s:volt'%ps_to_magnet[ps], ps.magn_sign*relee_sign*float(volt))
 
                     curr = s.question(':measure:current?')
+                    ps_relee.ask_for_error(s,psNR=ps.NR)
                     #curr_all += '%s '%curr
                     self.setParam('%s:curr'%ps_to_prefix[ps], curr)
                     self.setParam('%s:curr'%ps_to_magnet[ps], ps.magn_sign*relee_sign*float(curr))
 
                     outp = s.question('OUTP:STAT?')
+                    ps_relee.ask_for_error(s,psNR=ps.NR)
                     self.setParam('%s:output'%ps_to_prefix[ps],float(outp))
 
                 # refresh magn_all_volt and magn_all_curr
@@ -625,18 +668,30 @@ INIT
                 self.setParam('magn_volt_all',volt_all)
                 self.setParam('magn_curr_all',curr_all)
 
+                ps_relee.ask_for_error(s,psNR=ps_relee.NR)
                 s.__del__()
                 zps_lock.release()
             except Exception as e:
-                if e.errno == errno.ECONNREFUSED:
-                    print 'Connection to powersupplies refused, poling after 1 sec.'
-                    time.sleep(1)
+                #if e.errno == errno.ECONNREFUSED:
+                if e.errno == errno.ECONNRESET or e.errno == errno.ECONNREFUSED:
+                    time_to_sleep=0.5
+                    print 'Connection to powersupplies refused, poling after %.1f sec.'%time_to_sleep
+                    s.__del__()
+                    time.sleep(time_to_sleep)
+                    zps_lock.release()
                 else:
                     alive=False
                     print traceback.format_exc()
 
             self.updatePVs()
             time.sleep(zps_poling_time)
+
+#    def ask_for_error(self, sock, psNR):
+#        err_msg = sock.question('INST:NSEL %d\nSYST:ERR?'%psNR)
+#        if err_msg[0] == '0': return
+#
+#        print 'err_msg:',psNR,err_msg
+
 
 
 if __name__ == '__main__':

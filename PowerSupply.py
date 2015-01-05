@@ -31,6 +31,7 @@ class PowerSupply:
         #s.command("INST:NSEL %d\n"%self.NR)
         self.wait_for_op_complete(s)
         answer = s.question(":measure:voltage?\n")
+        self.ask_for_error(s)
         s.__del__()
         return answer
 
@@ -39,6 +40,7 @@ class PowerSupply:
         s.command("INST:NSEL %d\n"%self.NR)
         #self.wait_for_op_complete(s)
         s.command(":VOLT %.3f\n"%volt)
+        self.ask_for_error(s)
         s.__del__()
 
     def setWaveVolt(self,volt):
@@ -62,6 +64,7 @@ INIT
 *TRG
       '''%(volt,DWEL)
         s.command(scpi_ps)
+        self.ask_for_error(s)
         s.__del__()
 
     def getCurr(self):
@@ -70,6 +73,7 @@ INIT
         #self.wait_for_op_complete(s)
         answer = s.question("measure:current?\n")
         s.__del__()
+        self.ask_for_error(s)
         return answer
 
     def setCurr(self,curr):
@@ -77,6 +81,7 @@ INIT
         s.command("INST:NSEL %d\n"%self.NR)
         #self.wait_for_op_complete(s)
         s.command(":CURR %.3f"%curr)
+        self.ask_for_error(s)
         s.__del__()
 
 
@@ -103,6 +108,7 @@ INIT
       '''%(curr,DWEL)
         #print scpi_ps
         s.command(scpi_ps)
+        self.ask_for_error(s)
         s.__del__()
 
 
@@ -113,12 +119,22 @@ INIT
 
         s = SockConn(self.HOST, self.PORT)
         s.command("INST:NSEL %d\nOUTP:STAT %s\n"%(self.NR,v))
+        self.ask_for_error(s)
         s.__del__()
 
     def getOutput(self):
 
         s = SockConn(self.HOST, self.PORT)
         answer = s.question("INST:NSEL %d\nOUTP:STAT?\n"%(self.NR))
+        self.ask_for_error(s)
         s.__del__()
 
         return answer
+
+
+    def ask_for_error(self, sock, psNR=None):
+        if psNR==None: psNR=self.NR
+        err_msg = sock.question('INST:NSEL %d\nSYST:ERR?'%psNR)
+        if err_msg[0] == '0': return
+
+        print 'err_msg:',psNR,err_msg
