@@ -519,10 +519,7 @@ INIT
         if 'output' in reason and ps in active_ps_list:
             if value==0 or value ==1:
                 #print 'output',ps.NR
-                zps_lock.acquire()
-                ps.setOutput(value)
-                zps_lock.release()
-                self.setParam(reason,value)
+                self.setLockedOutput(ps,value,reason)
                 return True
             else: print 'Err: %s ps.Nr:%d value should be 0 or 1'%(reason,self.NR)
 
@@ -594,6 +591,16 @@ INIT
             time.sleep(sleep_s)
             #print 'pv %s done'%reason
             self.setParam(reason+':status',0)
+
+        thread.start_new_thread(f,(self,value,reason,))
+
+
+    def setLockedOutput(self, ps, value,reason):
+        def f(self,value,reason):
+            zps_lock.acquire()
+            ps.setOutput(value)
+            zps_lock.release()
+            self.setParam(reason,value)
 
         thread.start_new_thread(f,(self,value,reason,))
 
@@ -674,8 +681,8 @@ INIT
             except Exception as e:
                 #if e.errno == errno.ECONNREFUSED:
                 if e.errno == errno.ECONNRESET or e.errno == errno.ECONNREFUSED:
-                    time_to_sleep=0.5
-                    print 'Connection to powersupplies refused, poling after %.1f sec.'%time_to_sleep
+                    time_to_sleep=0.1
+                    #print 'Connection to powersupplies refused, poling after %.1f sec.'%time_to_sleep
                     s.__del__()
                     time.sleep(time_to_sleep)
                     zps_lock.release()

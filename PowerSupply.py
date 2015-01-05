@@ -119,6 +119,7 @@ INIT
 
         s = SockConn(self.HOST, self.PORT)
         s.command("INST:NSEL %d\nOUTP:STAT %s\n"%(self.NR,v))
+        time.sleep(1)
         self.ask_for_error(s)
         s.__del__()
 
