@@ -91,9 +91,19 @@ pvdb={
 
     'zps:relee:curr': {
         'prec' : 3,'unit' : 'A',
-        'asg'  : 'readonly'
+        #'asg'  : 'readonly'
+    },
+    'zps:relee:volt:status': {
+            'type'  : 'enum',
+            'enums' : ['IDLE','BUSY'],
+    },
+
+    'zps:relee:curr:status': {
+            'type'  : 'enum',
+            'enums' : ['IDLE','BUSY'],
     },
     'magn_volt_all' : {
+           #'type' : 'string',
            'type' : 'char',
             'count' : 100,
             'unit' : 'C',
@@ -194,6 +204,14 @@ class myDriver(Driver):
             time.sleep(1.5)
             s.command('INST:NSEL %d\nOUTP:STAT ON\n'%ps.NR)
 
+        time.sleep(0.01)
+
+        # TODO set relee volt=0 curr=0.6
+        #print 'setting the relee...'
+        #ps_relee.setWaveVolt(0)
+        #time.sleep(0.5)
+        #ps_relee.setWaveCurr(0.6)
+        #time.sleep(0.5)
 
         s.__del__()
 
@@ -680,8 +698,8 @@ INIT
                 zps_lock.release()
             except Exception as e:
                 #if e.errno == errno.ECONNREFUSED:
-                if e.errno == errno.ECONNRESET or e.errno == errno.ECONNREFUSED:
-                    time_to_sleep=0.1
+                if e.errno == errno.ECONNRESET or e.errno == errno.ECONNREFUSED or e.errno == errno.ETIMEDOUT:
+                    time_to_sleep=0.5
                     #print 'Connection to powersupplies refused, poling after %.1f sec.'%time_to_sleep
                     s.__del__()
                     time.sleep(time_to_sleep)
