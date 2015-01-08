@@ -106,14 +106,14 @@ pvdb={
            #'type' : 'string',
            'type' : 'char',
             'count' : 100,
-            'unit' : 'C',
-            'asg'  : 'readonly'
+            'unit' : 'V',
+            'asg'  : 'readonly',
     },
     'magn_curr_all' : {
            'type' : 'char',
             'count' : 100,
-            'unit' : 'C',
-            'asg'  : 'readonly'
+            'unit' : 'A',
+            'asg'  : 'readonly',
     },
 }
 for name in prefix_to_ps:
@@ -163,9 +163,9 @@ class myDriver(Driver):
         try:
             s = SockConn(HOST, PORT)
             #active_ps_list.append(ps_relee)
-            s.command('INST:NSEL %d\n*CLS\nOUTP:STAT ON\n'%ps_relee.NR)
+            #s.command('INST:NSEL %d\n*CLS\nOUTP:STAT ON\n'%ps_relee.NR)
             #s.command('INST:NSEL %d\n*RST\nOUTP:STAT ON\n'%ps_relee.NR)
-            #s.command('INST:NSEL %d\nOUTP:STAT ON\n'%ps_relee.NR)
+            s.command('INST:NSEL %d\nOUTP:STAT ON\n'%ps_relee.NR)
             print '%s powersupplyNR %d [connection '%('zps:relee',ps_relee.NR), colored('OK', 'green'),']'
         except socket.error, msg:
             print colored('Error: ', 'red'),"main LAN zps powersupply does not respond! %s"%msg
@@ -198,20 +198,24 @@ class myDriver(Driver):
 
         # clear command structure
         print 'clearing the command structure...'
+        s.command('INST:NSEL %d\n*CLS\nOUTP:STAT ON\n'%ps_relee.NR)
+        time.sleep(1.5)
+        s.command('INST:NSEL %d\nOUTP:STAT ON\n'%ps_relee.NR)
+        time.sleep(0.01)
         for ps in active_ps_list:
             s.command('INST:NSEL %d\nABORT\n*CLS\n'%ps.NR)
             #ps_relee.ask_for_error(s,psNR=ps.NR)
             time.sleep(1.5)
             s.command('INST:NSEL %d\nOUTP:STAT ON\n'%ps.NR)
 
-        time.sleep(0.01)
+        #ps_relee.ask_for_error(s,psNR=ps_relee.NR)
 
-        # TODO set relee volt=0 curr=0.6
+        # set relee volt=0 curr=0.6
         #print 'setting the relee...'
-        #ps_relee.setWaveVolt(0)
-        #time.sleep(0.5)
-        #ps_relee.setWaveCurr(0.6)
-        #time.sleep(0.5)
+        #s.command("INST:NSEL %d\n:VOLT %.3f"%(ps_relee.NR,0))
+        #ps_relee.ask_for_error(s,psNR=ps_relee.NR)
+        #s.command("INST:NSEL %d\n:CURR %.3f"%(ps_relee.NR,0.6))
+        #ps_relee.ask_for_error(s,psNR=ps_relee.NR)
 
         s.__del__()
 
@@ -688,8 +692,8 @@ INIT
                     else:
                         volt_all += 'None '
                         curr_all += 'None '
-                volt_all += '\n'
-                curr_all += '\n'
+                #volt_all += '\n'
+                #curr_all += '\n'
                 self.setParam('magn_volt_all',volt_all)
                 self.setParam('magn_curr_all',curr_all)
 
