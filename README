@@ -45,7 +45,7 @@ INSTALLATION
 
 First clone the git repository to the computer with should be the server. Create a directory like 'epics/ioc'. Switch to this directory and execute the git clone command:
 
-git clone <user>@129.13.108.126:/las-arhiv1/users/werner/repos/epics/zps
+git clone <user>@129.13.108.126:/las-archiv1/users/werner/repos/epics/zps.git
 
 Where <user> should be a valid user of the 126 archive computer.
 
