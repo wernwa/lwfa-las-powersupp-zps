@@ -1,0 +1,77 @@
+
+The zps-ioc driver/server controlls the 10 powersupplies for the magnets.
+
+
+
+
+DEPENDENCIES
+
+The driver is tested with python version 2.7.5. Additional python packages on ubuntu 14.04 are:
+
+	python-serial
+	python-termcolor
+
+The driver should run on pcaspy 0.5.1 library and above. On ubuntu you need the packages:
+	swig 
+	python-dev
+
+For the installation of pcapspy go to the website https://pcaspy.readthedocs.org/en/latest/installation.html and follow the installation guide. 
+
+
+
+
+pcaspy INSTALLATION from souce
+
+To compile from the sources the 0.5.1 version: 
+
+wget https://pypi.python.org/packages/source/p/pcaspy/pcaspy-0.5.1.tar.gz#md5=ba8c56ef136540cbaa463d35385b4c42
+tar xzf pcaspy-0.5.1.tar.gz
+
+Export the epics variables for root:
+                                                                            
+export EPICS=/usr/local/share/epics
+export EPICS_BASE=$EPICS/base
+export EPICS_HOST_ARCH=linux-x86_64
+export PATH=$EPICS_BASE/bin/linux-x86_64:$PATH
+export EPICS_CA_AUTO_ADDR_LIST=NO
+export EPICS_CA_ADDR_LIST="169.254.1.1 169.254.1.3:20000 169.254.1.3:20002"
+
+The  $EPICS/base/startup/EpicsHostArch.pl script tells you the EPICS_HOST_ARCH.  Go to the pcaspy source directory and compile:
+
+sudo python setup.py install
+
+
+INSTALLATION
+
+First clone the git repository to the computer with should be the server. Create a directory like 'epics/ioc'. Switch to this directory and execute the git clone command:
+
+git clone <user>@129.13.108.126:/las-arhiv1/users/werner/repos/epics/zps
+
+Where <user> should be a valid user of the 126 archive computer.
+
+
+
+
+USAGE
+
+Starting the zps-ioc from the command line use the zps-ioc.sh script:
+
+./zps-ioc.sh start
+
+To end the server you can use the CTRL+C shortkey or type
+
+./zps-ioc.sh stop
+
+in another shell. The latter is useful if the server does not react anymore.
+
+
+
+IMPORTANT FILES
+
+zps-ioc.sh		Starter scripct for the ioc server
+zps-ioc.py		main ioc driver in python
+PowerSupply.py		a python class for one power suupply
+SockConn.py		a python class for handling a socket connection to the powersupplies
+setup.py		config variables for the server
+socket-server.py	virtual power supplies for testing (if real power supplies are not avalable)
+pseudo-zps-ioc.py	fake zps-ioc server (please use socket-server.py instead)

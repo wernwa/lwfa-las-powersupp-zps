@@ -1,9 +1,15 @@
 #!/usr/bin/python
+#
+#
+#   Driver class for 10 power supplies
+#
+#   Author: Walter Werner
+#   email: wernwa@gmail.com
+#
+
+
 
 import os
-#
-#os.environ["EPICS_CA_REPEATER_PORT"] = "20000"
-#os.environ["EPICS_CA_SERVER_PORT"] = "20001"
 
 from pcaspy import Driver, SimpleServer, Severity
 import random
@@ -18,11 +24,10 @@ from termcolor import colored
 from setup import *
 import traceback, errno
 
-alive=True
+alive=True  # helper variable for the polling thread
 
 
 global ps_relee, ps1, ps2, ps3, ps4, ps5, ps6, ps7, ps8, ps9
-#global q1, q2, q3, q4, q5, q6, q7, d1, d2
 
 
 ps_to_magnet = {
@@ -58,7 +63,6 @@ for key in prefix_to_ps:
     record_to_ps['%s:volt'%key] = prefix_to_ps[key]
     record_to_ps['%s:curr'%key] = prefix_to_ps[key]
 
-#global zps_lock, zps_conn
 zps_lock = thread.allocate_lock()
 zps_conn = False
 
@@ -69,6 +73,12 @@ relee_sign = -1.0    # plus and minus
 relee_plus = 0.0    # V
 relee_minus = 24.0    #V
 
+
+
+
+##
+##  Database variable definitions
+##
 prefix = 'chicane:'
 pvdb={
     'demag': {},
@@ -150,7 +160,17 @@ for name in ['q1','q2','q3','q4','q5','q6','q7','d1','d2']:
     pvdb['%s:curr'%name] = {'prec' : 3,'unit' : 'A', 'asg'  : 'readonly'}
 
 
+
+
+
+
+##
+##  The actual driver class
+##
 class myDriver(Driver):
+    #
+    # Constructor, discover powersuppl that are connected with the relee
+    #
     def  __init__(self):
         super(myDriver, self).__init__()
 
@@ -228,25 +248,23 @@ class myDriver(Driver):
         print '%d ps up. Start polling with %0.3f seconds (CTRL+C -> end).'%(len(active_ps_list)+1,zps_poling_time)
         print '----------------------------------------------------------'
 
-
+    #
+    #   read method is called if a pv variable is readed, currently with no
+    #   actual functionality and
+    #   can be outcommented
+    #
     def read(self, reason):
 
         if 'relee' in reason : ps = ps_relee
         elif reason in record_to_ps: ps = record_to_ps[reason]
 
-        # get output status
-#        if 'output' in reason and ps in active_ps_list:
-#            #print 'output',ps.NR
-#            zps_lock.acquire()
-#            output = ps.getOutput()
-#            zps_lock.release()
-#            value = float(output)
-#            self.setParam(reason,value)
-#            return value
 
         return self.getParam(reason)
 
-
+    #
+    #  get the opposite sign in Voltage for the relee
+    #  needed by the demag function
+    #
     def get_relee_invert(self):
         global relee_sign, relee_plus, relee_minus
         if relee_sign==1.0: return relee_minus
@@ -254,6 +272,9 @@ class myDriver(Driver):
 
 
 
+    #
+    #   Main demag method
+    #
     def demag(self):
 
 
@@ -315,7 +336,9 @@ class myDriver(Driver):
 #        s.__del__()
 #        zps_lock.release()
 
-
+    #
+    #   First Step, all ps to zero
+    #
     def demag_0(self):
         global active_ps_list, relee_sign, relee_plus, relee_minus
         ps_heightCurr = []
@@ -398,7 +421,10 @@ INIT
         # invert sign of the relee
         self.write('zps:relee:volt',self.get_relee_invert())
 
-
+    #
+    #   Triangle step (from zero to some lesser value and sign change of the
+    #   relee)
+    #
     def demag_triangle(self, ps_heightCurr):
         global active_ps_list, relee_sign, relee_plus, relee_minus
         curr_max = 0
@@ -505,10 +531,11 @@ INIT
 
 
 
-
+    #
+    #  The write method is called everytime the user wants to change a variable
+    #
     def write(self, reason, value):
         global relee_plus, relee_minus, relee_sign
-        #TODO read status
         status = True
         ps = None
 
@@ -601,6 +628,9 @@ INIT
             elif 'curr' in reason: self.setParam('%s:curr'%ps_to_magnet[ps], ps.magn_sign*relee_sign*value)
         return status
 
+    #
+    #   Setting the Current asyncronous
+    #
     def setLockedCurrThread(self, ps, value,reason):
         def f(self,value,reason):
             self.setParam(reason+':status',1)
@@ -617,6 +647,9 @@ INIT
         thread.start_new_thread(f,(self,value,reason,))
 
 
+    #
+    #   Setting the output of the power supplies  asyncronous
+    #
     def setLockedOutput(self, ps, value,reason):
         def f(self,value,reason):
             zps_lock.acquire()
@@ -645,6 +678,10 @@ INIT
 #
 #        thread.start_new_thread(f,(self,value,reason,))
 
+
+    #
+    #   The polling method used by a thread started in the constructor
+    #
     def continues_polling(self):
         global alive, ps_list, active_ps_list, relee_sign, relee_plus, relee_minus
         s = None
@@ -715,14 +752,12 @@ INIT
             self.updatePVs()
             time.sleep(zps_poling_time)
 
-#    def ask_for_error(self, sock, psNR):
-#        err_msg = sock.question('INST:NSEL %d\nSYST:ERR?'%psNR)
-#        if err_msg[0] == '0': return
+
+
 #
-#        print 'err_msg:',psNR,err_msg
-
-
-
+# main function, create the server and driver object and listen to user inquire
+# until Error or CTRL-C accrues
+#
 if __name__ == '__main__':
 
 

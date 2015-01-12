@@ -1,9 +1,15 @@
+#
+#   PowerSupply class for talking to one poer supply
+#
 import socket
 import sys
 import time
 from SockConn import SockConn
 
 
+
+
+# TODO import setup.py for this variable
 step_velocity=0.25 # A/sec
 #step_velocity=2 # A/sec relee friendly speed
 
@@ -12,7 +18,9 @@ class PowerSupply:
     connection=None
     HOST=None
     PORT=None
-
+    #
+    #   Constructor
+    #
     def __init__(self,host,port,nr,magn_sign=1):
         self.NR=nr
         #self.connection=con
@@ -21,20 +29,30 @@ class PowerSupply:
         #self.connection.command("INST:NSEL {}".format(self.NR))
         self.magn_sign=magn_sign
 
+    #
+    #   wates for the ps be ready for new commands
+    #   this method is obsolete, ask_for_errors does the same job
+    #
     def wait_for_op_complete(self, sock):
         opc = 0
         while opc!='1':
             opc=sock.question('*OPC?\n')
 
+    #
+    #   get current voltage
+    #
     def getVolt(self):
         s = SockConn(self.HOST, self.PORT)
         #s.command("INST:NSEL %d\n"%self.NR)
-        self.wait_for_op_complete(s)
+        #self.wait_for_op_complete(s)
         answer = s.question(":measure:voltage?\n")
         self.ask_for_error(s)
         s.__del__()
         return answer
 
+    #
+    #   set the current voltage
+    #
     def setVolt(self,volt):
         s = SockConn(self.HOST, self.PORT)
         s.command("INST:NSEL %d\n"%self.NR)
@@ -43,6 +61,9 @@ class PowerSupply:
         self.ask_for_error(s)
         s.__del__()
 
+    #
+    #   set voltage as a linear ramp
+    #
     def setWaveVolt(self,volt):
         s = SockConn(self.HOST, self.PORT)
         s.command("INST:NSEL %d\n"%self.NR)
@@ -67,6 +88,11 @@ INIT
         self.ask_for_error(s)
         s.__del__()
 
+
+
+    #
+    #   get current current
+    #
     def getCurr(self):
         s = SockConn(self.HOST, self.PORT)
         s.command("INST:NSEL %d\n"%self.NR)
@@ -76,6 +102,10 @@ INIT
         self.ask_for_error(s)
         return answer
 
+
+    #
+    #   set current
+    #
     def setCurr(self,curr):
         s = SockConn(self.HOST, self.PORT)
         s.command("INST:NSEL %d\n"%self.NR)
@@ -85,6 +115,9 @@ INIT
         s.__del__()
 
 
+    #
+    #   set current as a linear ramp
+    #
     def setWaveCurr(self,curr):
         s = SockConn(self.HOST, self.PORT)
         s.command("INST:NSEL %d\n"%self.NR)
@@ -112,6 +145,9 @@ INIT
         s.__del__()
 
 
+    #
+    #   set output of a ps
+    #
     def setOutput(self,value):
         v = None
         if value==1: v='ON'
@@ -123,6 +159,9 @@ INIT
         self.ask_for_error(s)
         s.__del__()
 
+    #
+    #   get output of a ps
+    #
     def getOutput(self):
 
         s = SockConn(self.HOST, self.PORT)
@@ -133,6 +172,10 @@ INIT
         return answer
 
 
+    #
+    #   after each query it is recommended to ask a ps for errors
+    #   This call (intern in the ps) wates until previous requests are finished
+    #
     def ask_for_error(self, sock, psNR=None):
         if psNR==None: psNR=self.NR
         err_msg = sock.question('INST:NSEL %d\nSYST:ERR?'%psNR)

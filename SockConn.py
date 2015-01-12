@@ -1,3 +1,6 @@
+#
+#   SockConn for a socket connection
+#
 import socket
 import sys
 import time
@@ -9,6 +12,9 @@ class SockConn:
     HOST, PORT = "localhost", 9999
     sock=None
 
+    #
+    #   Constructor
+    #
     def __init__(self,host,port):
         self.HOST=host
         self.PORT=port
@@ -17,7 +23,9 @@ class SockConn:
         # Connect to server
         self.sock.connect((self.HOST, self.PORT))
 
-
+    #
+    #   reads a string from the socket until delim accrues
+    #
     def readline(self,asock, recv_buffer=4096, delim='\r\n', timeout=2):
         buffer = ''
         data = True
@@ -31,11 +39,16 @@ class SockConn:
                 return line
         return
 
+    #
+    #   send a command without waiting for an answer
+    #
     def command(self,data):
         self.sock.sendall(data+"\n")
         #print "SCPI "+data+"\n"
 
-
+    #
+    #   sends a command and returns also an answer string
+    #
     def question(self,data,timeout=1):
         #try:
         start_millis=current_millis()
@@ -53,7 +66,9 @@ class SockConn:
         return received
     #except:
 
-
+    #
+    #   Destructor, closes the socket connection and sleeps for some relax time
+    #
     def __del__(self):
         #print "close socket\n"
         self.sock.close()

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+#
+# set the ioc to two unused ports
+#
 export EPICS_CA_SERVER_PORT=20000
 export EPICS_CA_REPEATER_PORT=20001
 
