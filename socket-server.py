@@ -1,4 +1,8 @@
 #!/usr/bin/python
+#
+#   virtual power supply, opens on localhost:8003 a socket server and
+#   answers to some of the SCPI commands from z+ power-supplies
+#
 
 import SocketServer
 import re

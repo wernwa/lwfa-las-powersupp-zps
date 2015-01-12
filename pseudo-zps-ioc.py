@@ -1,4 +1,10 @@
 #!/usr/bin/python
+#
+#   pseudo zps ioc (this is old and deprecated, plese use socket-server.py
+#   instead)
+#   gives pseudo answers to voltage and current to an EPICs client
+#
+
 
 import os
 #
