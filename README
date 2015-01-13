@@ -8,12 +8,12 @@ DEPENDENCIES
 
 The driver is tested with python version 2.7.5. Additional python packages on ubuntu 14.04 are:
 
-	python-serial
+	python-serial       (fedora: pyserial)
 	python-termcolor
 
 The driver should run on pcaspy 0.5.1 library and above. On ubuntu you need the packages:
 	swig 
-	python-dev
+	python-dev          (fedora: python-devel)
 
 For the installation of pcapspy go to the website https://pcaspy.readthedocs.org/en/latest/installation.html and follow the installation guide. 
 
