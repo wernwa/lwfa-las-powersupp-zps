@@ -1,6 +1,8 @@
-
-The zps-ioc driver/server controlls the 10 powersupplies for the magnets.
-
+#
+#   The zps-ioc driver/server controlls the 10 powersupplies for the magnets.
+#
+#   author: Walter Werner
+#   email: wernwa@gmail.com
 
 
 
