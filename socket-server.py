@@ -161,6 +161,11 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
                 #ps[ps_CURR]=curr
                 thread.start_new_thread(self.set_curr_in_time,(ps,curr,curr_time,))
 
+            # get output
+            if 'SYST:ERR?' in self.data:
+                #num = "%.3f\r\n" %(ps_selected[ps_OUTPUT])
+                self.request.sendall('0,"No Error"\r\n')
+
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8003
 
